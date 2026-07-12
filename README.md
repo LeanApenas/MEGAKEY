@@ -39,3 +39,4 @@ O servidor rodará em `http://localhost:7860`. Caso possua GPU NVIDIA (CUDA), o 
 
 ## ⚖️ Licença
 Projeto desenvolvido sob medida para automação de estúdios fotográficos e cabines de foto.
+"# MEGAKEY" 
