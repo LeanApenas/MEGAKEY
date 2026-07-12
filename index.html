@@ -677,6 +677,36 @@
         Aplicar fundo na foto selecionada
       </button>
 
+      <div class="divider" style="margin: 12px 0 8px 0;"></div>
+
+      <!-- PASTA DE FUNDOS CUSTOMIZADOS (DRAG & DROP) -->
+      <div class="project-bg-section">
+        <div class="bg-panel-title" style="margin-bottom: 8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M21 12H3M12 3v18"/>
+          </svg>
+          <span>Fundos do Projeto</span>
+        </div>
+
+        <!-- Zona de Arraste e Solte -->
+        <div class="bg-drag-zone" id="bgDragZone">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="1.5" style="margin-bottom: 4px; pointer-events: none;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span style="pointer-events: none;">Arraste imagens de fundo aqui</span>
+          <span style="font-size: 10px; color: var(--text-muted); pointer-events: none;">ou clique para carregar</span>
+          <input type="file" id="inputFundoCustomizado" accept="image/*" multiple style="display:none" onchange="uploadFundosCustomizados(this)" />
+        </div>
+
+        <!-- Lista de cartões de fundos customizados -->
+        <div class="custom-bg-list" id="customBgList">
+          <!-- Gerado dinamicamente -->
+        </div>
+      </div>
+
     </div>
   </aside>
 

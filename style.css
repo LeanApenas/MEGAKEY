@@ -1632,6 +1632,128 @@ body {
   color: #00D4FF !important;
 }
 
+/* ============================================
+   PROJECT BG DRAG ZONE & LIST
+   ============================================ */
+.project-bg-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 10px 0;
+}
+
+.bg-drag-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1.5px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+
+.bg-drag-zone:hover, .bg-drag-zone.dragover {
+  background: rgba(0,212,255,0.06);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 15px rgba(0,212,255,0.1);
+}
+
+.bg-drag-zone span {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.custom-bg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.custom-bg-list::-webkit-scrollbar { width: 3px; }
+.custom-bg-list::-webkit-scrollbar-track { background: transparent; }
+.custom-bg-list::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 2px; }
+
+.custom-bg-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.custom-bg-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-medium);
+}
+
+.custom-bg-card.selected {
+  border-color: var(--accent-blue);
+  background: rgba(0,212,255,0.06);
+  box-shadow: 0 0 10px rgba(0,212,255,0.15);
+}
+
+.custom-bg-card img {
+  width: 52px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+.custom-bg-details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+.custom-bg-name {
+  font-size: 11.5px;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-bg-meta {
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.custom-bg-delete {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: var(--transition);
+}
+
+.custom-bg-delete:hover {
+  color: var(--accent-red);
+  background: rgba(239,68,68,0.1);
+}
+
 /* Responsividade básica */
 @media (max-width: 900px) {
   :root {

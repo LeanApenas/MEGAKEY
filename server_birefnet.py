@@ -315,6 +315,49 @@ def list_backgrounds():
 def get_background(filename):
     return send_from_directory(FUNDOS_DIR, filename)
 
+@app.route("/save-background", methods=["POST"])
+def save_background():
+    data = request.get_json()
+    if not data or "image_b64" not in data or "filename" not in data:
+        return jsonify({"erro": "Parametros ausentes"}), 400
+
+    try:
+        filename = data["filename"]
+        filename = os.path.basename(filename)
+        filepath = os.path.join(FUNDOS_DIR, filename)
+
+        img_data = data["image_b64"]
+        if "," in img_data:
+            img_data = img_data.split(",")[1]
+
+        img_bytes = base64.b64decode(img_data)
+        with open(filepath, "wb") as f:
+            f.write(img_bytes)
+
+        print(f"🖼️ Novo fundo salvo na pasta fundos: {filepath}")
+        return jsonify({
+            "status": "sucesso",
+            "caminho": filepath
+        })
+    except Exception as e:
+        print(f"Erro ao salvar fundo: {e}")
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/delete-background/<path:filename>", methods=["DELETE"])
+def delete_background(filename):
+    try:
+        filename = os.path.basename(filename)
+        filepath = os.path.join(FUNDOS_DIR, filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            print(f"🗑️ Fundo removido do servidor: {filepath}")
+            return jsonify({"status": "sucesso"})
+        else:
+            return jsonify({"erro": "Arquivo nao encontrado"}), 404
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
 
 # ============================================================
 # INICIALIZACAO

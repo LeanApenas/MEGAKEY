@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fecharDropdownsAoClicarFora();
   atualizarStatusUI();
   inicializarPainelFundo();
+  inicializarDragAndDropFundos();
   mostrarToast('MEGAKEY iniciado com sucesso!', 'info');
 });
 
@@ -1920,9 +1921,8 @@ async function carregarFundosLocaisDoServidor() {
       const data = await response.json();
       const backgrounds = data.backgrounds || [];
       
-      if (backgrounds.length > 0) {
-        adicionarFundosServidorNaGrid(backgrounds);
-      }
+      adicionarFundosServidorNaGrid(backgrounds);
+      renderizarCartoesFundoProjeto(backgrounds);
     }
   } catch (err) {
     console.error('Erro ao carregar fundos do servidor:', err);
@@ -1934,6 +1934,8 @@ function adicionarFundosServidorNaGrid(backgrounds) {
   
   // Remove itens dinâmicos antigos se houver
   document.querySelectorAll('.bg-option-dynamic').forEach(el => el.remove());
+  
+  if (backgrounds.length === 0) return;
   
   backgrounds.forEach(filename => {
     const url = `${Estado.fundo.birefnetURL}/background/${filename}`;
@@ -1975,4 +1977,202 @@ function adicionarFundosServidorNaGrid(backgrounds) {
     const uploadBtn = document.getElementById('bgOpt-upload');
     grid.insertBefore(bgOpt, uploadBtn);
   });
+}
+
+// ---- INICIALIZAR ARRASTAR E SOLTAR DE FUNDOS ----
+function inicializarDragAndDropFundos() {
+  const dropZone = document.getElementById('bgDragZone');
+  if (!dropZone) return;
+
+  // Ao clicar, abre o explorador de arquivos
+  dropZone.addEventListener('click', () => {
+    document.getElementById('inputFundoCustomizado').click();
+  });
+
+  // Impedir propagação padrão de drag/drop no resto da tela
+  window.addEventListener('dragover', (e) => e.preventDefault(), false);
+  window.addEventListener('drop', (e) => e.preventDefault(), false);
+
+  // Efeitos visuais ao arrastar arquivos sobre a zona
+  ['dragenter', 'dragover'].forEach(name => {
+    dropZone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(name => {
+    dropZone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+    }, false);
+  });
+
+  // Captura o drop dos arquivos
+  dropZone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    processarUploadDeFundos(files);
+  }, false);
+}
+
+function uploadFundosCustomizados(input) {
+  processarUploadDeFundos(input.files);
+}
+
+// Processa e envia os fundos arrastados para o servidor
+async function processarUploadDeFundos(files) {
+  if (files.length === 0) return;
+
+  mostrarToast(`📤 Salvando ${files.length} fundo(s) no projeto...`, 'info');
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (!file.type.startsWith('image/')) {
+      mostrarToast('⚠️ Apenas imagens são suportadas como fundo', 'warning');
+      continue;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataURL = e.target.result;
+
+      if (Estado.fundo.birefnetOnline) {
+        try {
+          const response = await fetch(`${Estado.fundo.birefnetURL}/save-background`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              image_b64: dataURL,
+              filename: file.name
+            })
+          });
+
+          if (response.ok) {
+            mostrarToast(`✅ Fundo salvo: ${file.name}`, 'success');
+            // Recarrega lista de fundos
+            carregarFundosLocaisDoServidor();
+          } else {
+            throw new Error('Falha no upload do servidor');
+          }
+        } catch (err) {
+          console.error(err);
+          mostrarToast('❌ Erro ao enviar ao servidor de fundos', 'error');
+        }
+      } else {
+        mostrarToast('⚠️ Servidor local offline. Inicie o server_birefnet.py para usar fundos customizados.', 'warning');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// ---- RENDERIZAR CARTOES DE FUNDOS DO PROJETO ----
+function renderizarCartoesFundoProjeto(backgrounds) {
+  const container = document.getElementById('customBgList');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  if (backgrounds.length === 0) {
+    container.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 12px; border: 1px dashed var(--border-subtle); border-radius: var(--radius-sm); margin-top: 4px;">Nenhum fundo customizado na pasta</div>`;
+    return;
+  }
+
+  backgrounds.forEach(filename => {
+    const url = `${Estado.fundo.birefnetURL}/background/${filename}`;
+
+    const card = document.createElement('div');
+    card.className = 'custom-bg-card';
+    if (Estado.fundo.imagemDataURL === url) {
+      card.classList.add('selected');
+    }
+
+    // Clique seleciona este fundo
+    card.onclick = () => {
+      document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
+      document.querySelectorAll('.custom-bg-card').forEach(el => el.classList.remove('selected'));
+      
+      card.classList.add('selected');
+
+      const img = new Image();
+      img.onload = () => {
+        Estado.fundo.imagemUpload = img;
+        Estado.fundo.imagemDataURL = url;
+        Estado.fundo.tipo = 'upload'; // Trata como imagem carregada
+        mostrarToast(`Fundo ativo: ${filename}`, 'info');
+      };
+      img.src = url;
+    };
+
+    const imgEl = document.createElement('img');
+    imgEl.src = url;
+
+    const details = document.createElement('div');
+    details.className = 'custom-bg-details';
+
+    const name = document.createElement('span');
+    name.className = 'custom-bg-name';
+    name.textContent = filename.split('.')[0];
+
+    const meta = document.createElement('span');
+    meta.className = 'custom-bg-meta';
+    meta.textContent = 'Fundo customizado';
+
+    details.appendChild(name);
+    details.appendChild(meta);
+
+    // Botão de deletar
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'custom-bg-delete';
+    deleteBtn.title = 'Excluir fundo';
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      excluirFundoDoServidor(filename);
+    };
+    deleteBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+    `;
+
+    card.appendChild(imgEl);
+    card.appendChild(details);
+    card.appendChild(deleteBtn);
+    container.appendChild(card);
+  });
+}
+
+// Excluir fundo físico do servidor
+async function excluirFundoDoServidor(filename) {
+  if (!Estado.fundo.birefnetOnline) return;
+
+  if (!confirm(`Deseja realmente excluir o fundo "${filename}" do projeto?`)) return;
+
+  try {
+    const response = await fetch(`${Estado.fundo.birefnetURL}/delete-background/${filename}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      mostrarToast(`🗑️ Fundo removido: ${filename}`, 'success');
+      
+      // Se era o fundo ativo, reseta para nenhum
+      const url = `${Estado.fundo.birefnetURL}/background/${filename}`;
+      if (Estado.fundo.imagemDataURL === url) {
+        selecionarFundo('none');
+        Estado.fundo.imagemUpload = null;
+        Estado.fundo.imagemDataURL = null;
+      }
+      
+      // Recarrega lista
+      carregarFundosLocaisDoServidor();
+    }
+  } catch (err) {
+    console.error('Falha ao excluir fundo do servidor:', err);
+    mostrarToast('❌ Erro ao remover fundo', 'error');
+  }
 }
