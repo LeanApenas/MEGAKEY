@@ -55,7 +55,8 @@ const Estado = {
     ultimaMascaraTs: 0,
     sujeitoScale: 80,
     sujeitoX: 50,
-    sujeitoY: 100
+    sujeitoY: 100,
+    metodo: 'chromakey'      // 'chromakey' | 'birefnet'
   }
 };
 
@@ -1457,19 +1458,26 @@ function toggleRemoverFundo() {
   const chk = document.getElementById('chkRemoverFundo');
   Estado.fundo.ativo = chk.checked;
   const bgControls = document.getElementById('bgControls');
+  const statusBar = document.getElementById('bgStatusBar');
 
   if (Estado.fundo.ativo) {
-    if (!Estado.fundo.birefnetOnline) {
-      mostrarToast('⚠️ Servidor BiRefNet offline. O fundo será aplicado sem remoção automática.', 'warning');
+    if (Estado.fundo.metodo === 'chromakey') {
+      mostrarToast('🎨 Fundo Virtual ativado com Chroma Key!', 'success');
+      if (statusBar) statusBar.style.display = 'none';
     } else {
-      mostrarToast('🎨 Fundo Virtual ativado com BiRefNet!', 'success');
+      if (!Estado.fundo.birefnetOnline) {
+        mostrarToast('⚠️ Servidor BiRefNet offline. O fundo será aplicado sem remoção automática.', 'warning');
+      } else {
+        mostrarToast('🎨 Fundo Virtual ativado com BiRefNet!', 'success');
+      }
+      if (statusBar) statusBar.style.display = 'flex';
+      atualizarStatusFundo();
     }
     bgControls.style.display = 'flex';
-    atualizarStatusFundo();
   } else {
     bgControls.style.display = 'none';
+    if (statusBar) statusBar.style.display = 'none';
     Estado.fundo.maskCanvas = null;
-    atualizarStatusFundo();
     mostrarToast('Fundo Virtual desativado', 'info');
   }
 }
@@ -1599,8 +1607,9 @@ function pintarFundoNoCanvas(ctx, w, h) {
 }
 
 // ---- COMPOSIÇÃO DO LIVE VIEW COM FUNDO ----
-// Esta função é injetada no loop do Live View
-// quando Estado.fundo.ativo === true
+// Elementos de canvas em cache para o processamento de Chroma Key do Live View
+let _chromaCanvas = null;
+let _chromaCtx = null;
 
 function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
   if (!Estado.fundo.ativo || Estado.fundo.tipo === 'none') {
@@ -1614,7 +1623,48 @@ function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
   // 1. Pinta o fundo primeiro
   pintarFundoNoCanvas(ctx, cw, ch);
 
-  // 2. Se BiRefNet está online e em tempo real: usa máscara
+  // 2. Se for método Chroma Key: processa localmente a remoção do verde em tempo real
+  if (Estado.fundo.metodo === 'chromakey') {
+    if (!_chromaCanvas) {
+      _chromaCanvas = document.createElement('canvas');
+      _chromaCtx = _chromaCanvas.getContext('2d');
+    }
+    if (_chromaCanvas.width !== cw || _chromaCanvas.height !== ch) {
+      _chromaCanvas.width = cw;
+      _chromaCanvas.height = ch;
+    }
+
+    if (Estado.modoP_B) _chromaCtx.filter = 'grayscale(100%)';
+    _chromaCtx.drawImage(videoEl, dx, dy, dw, dh);
+    _chromaCtx.filter = 'none';
+
+    const frame = _chromaCtx.getImageData(0, 0, cw, ch);
+    const data = frame.data;
+    const len = data.length;
+
+    for (let i = 0; i < len; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // Detecção de pixels verdes com tolerância para sombras
+      if (g > 60 && g > r * 1.12 && g > b * 1.12) {
+        data[i + 3] = 0; // Transparente
+      }
+    }
+    _chromaCtx.putImageData(frame, 0, 0);
+
+    const scaleFactor = Estado.fundo.sujeitoScale / 100;
+    const targetW = cw * scaleFactor;
+    const targetH = ch * scaleFactor;
+    const targetX = (cw * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+    const targetY = (ch * (Estado.fundo.sujeitoY / 100)) - targetH;
+
+    ctx.drawImage(_chromaCanvas, targetX, targetY, targetW, targetH);
+    return;
+  }
+
+  // 3. Se BiRefNet está online e em tempo real: usa máscara
   if (Estado.fundo.birefnetOnline && Estado.fundo.birefnetTempoReal && Estado.fundo.maskCanvas) {
     // Aplica máscara: compositing
     const tempCanvas = document.createElement('canvas');
@@ -1746,7 +1796,42 @@ async function removerFundoFotoSelecionada() {
   resultCanvas.height = H;
   const rCtx = resultCanvas.getContext('2d');
 
-  if (Estado.fundo.birefnetOnline) {
+  if (Estado.fundo.metodo === 'chromakey') {
+    // Pinta fundo
+    pintarFundoNoCanvas(rCtx, W, H);
+
+    // Chroma key de alta resolução da foto selecionada
+    const tempC = document.createElement('canvas');
+    tempC.width = W; tempC.height = H;
+    const tCtx = tempC.getContext('2d');
+    tCtx.drawImage(srcImg, 0, 0);
+
+    const frame = tCtx.getImageData(0, 0, W, H);
+    const data = frame.data;
+    const len = data.length;
+
+    for (let i = 0; i < len; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // Detecção flexível de pixels verdes para estúdios
+      if (g > 60 && g > r * 1.12 && g > b * 1.12) {
+        data[i + 3] = 0; // Transparente
+      }
+    }
+    tCtx.putImageData(frame, 0, 0);
+
+    // Pinta sujeito com escala e posição
+    const scaleFactor = Estado.fundo.sujeitoScale / 100;
+    const targetW = W * scaleFactor;
+    const targetH = H * scaleFactor;
+    const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+    const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
+
+    rCtx.drawImage(tempC, targetX, targetY, targetW, targetH);
+    mostrarToast('✅ Chroma Key aplicado com sucesso!', 'success');
+  } else if (Estado.fundo.birefnetOnline) {
     try {
       // Envia foto ao BiRefNet local
       const snap = document.createElement('canvas');
@@ -2368,4 +2453,21 @@ function abrirSegundaTela() {
   }
   window.windowTela2 = window.open('tela2.html', 'MEGAKEY_Tela2', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no');
   mostrarToast('🖥️ Tela 2 (Slideshow) aberta! Arraste para o segundo monitor.', 'success');
+}
+function alterarMetodoRemocao(value) {
+  Estado.fundo.metodo = value;
+  
+  const aiBadge = document.getElementById('aiBadgeLabel');
+  const statusBar = document.getElementById('bgStatusBar');
+  
+  if (value === 'chromakey') {
+    if (aiBadge) aiBadge.textContent = 'Chroma Key';
+    if (statusBar) statusBar.style.display = 'none';
+    mostrarToast('🟢 Modo de Remoção: Chroma Key (Fundo Verde local)', 'success');
+  } else {
+    if (aiBadge) aiBadge.textContent = 'BiRefNet IA';
+    if (statusBar) statusBar.style.display = 'flex';
+    mostrarToast('🤖 Modo de Remoção: Inteligência Artificial (BiRefNet)', 'success');
+    atualizarStatusFundo();
+  }
 }

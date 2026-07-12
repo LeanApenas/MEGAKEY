@@ -101,6 +101,10 @@ except Exception as e:
 
 @app.route("/", methods=["GET"])
 def home():
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    index_path = os.path.join(root_dir, "index.html")
+    if os.path.exists(index_path):
+        return send_from_directory(root_dir, "index.html")
     return """
     <html>
         <head>
@@ -144,13 +148,6 @@ def home():
                     font-weight: bold;
                     margin-bottom: 20px;
                 }
-                code {
-                    background: #08080f;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    color: #9D5FFF;
-                    font-family: monospace;
-                }
             </style>
         </head>
         <body>
@@ -163,6 +160,11 @@ def home():
         </body>
     </html>
     """
+
+@app.route("/<path:path>")
+def serve_static(path):
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(root_dir, path)
 
 @app.route("/health", methods=["GET"])
 def health():

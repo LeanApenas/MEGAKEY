@@ -559,7 +559,7 @@
             <path d="M3 9h18M9 21V9"/>
           </svg>
           <span>Fundo Virtual</span>
-          <span class="ai-badge">BiRefNet IA</span>
+          <span class="ai-badge" id="aiBadgeLabel">Chroma Key</span>
         </div>
         <label class="toggle-label">
           <input type="checkbox" id="chkRemoverFundo" onchange="toggleRemoverFundo()" />
@@ -567,8 +567,17 @@
         </label>
       </div>
 
+      <!-- Método de Remoção -->
+      <div class="control-row" style="margin: 6px 0 10px 0; display: flex; align-items: center; gap: 8px;">
+        <label class="setting-label" style="margin: 0; white-space: nowrap; font-size: 11px;">Método:</label>
+        <select class="ctrl-select" id="selectMetodoRemocao" onchange="alterarMetodoRemocao(this.value)" style="flex:1; padding: 4px 8px; font-size: 11px;">
+          <option value="chromakey" selected>Chroma Key (Fundo Verde Físico)</option>
+          <option value="birefnet">Inteligência Artificial (BiRefNet)</option>
+        </select>
+      </div>
+
       <!-- Status da IA -->
-      <div class="bg-status-bar" id="bgStatusBar">
+      <div class="bg-status-bar" id="bgStatusBar" style="display:none;">
         <div class="bg-status-dot" id="bgStatusDot"></div>
         <span id="bgStatusText">IA desativada</span>
         <button class="bg-config-btn" onclick="abrirConfigBiRefNet()" title="Configurar servidor BiRefNet">
