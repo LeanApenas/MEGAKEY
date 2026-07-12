@@ -213,8 +213,12 @@ def remove_bg():
             max_rb = np.maximum(r, b)
             verde_mask = (g > 50) & ((g - max_rb) > 16)
             alpha = np.where(verde_mask, 0, 255).astype(np.uint8)
-
-            img_rgba = img.convert("RGBA")
+            
+            # Spill Suppressor: remove franjas e reflexos verdes
+            g_adjusted = np.where(g > max_rb, max_rb, g)
+            img_array[:, :, 1] = g_adjusted
+            
+            img_rgba = Image.fromarray(img_array).convert("RGBA")
             img_rgba.putalpha(Image.fromarray(alpha))
 
         buf = io.BytesIO()

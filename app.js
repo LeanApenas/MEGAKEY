@@ -1651,6 +1651,11 @@ function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
       const maxRedBlue = r > b ? r : b;
       if (g > 50 && (g - maxRedBlue) > 16) {
         data[i + 3] = 0; // Transparente
+      } else {
+        // Spill Suppressor: reduz as bordas verdes e reflexos na pele/roupas
+        if (g > maxRedBlue) {
+          data[i + 1] = maxRedBlue; // Reduz canal G
+        }
       }
     }
     _chromaCtx.putImageData(frame, 0, 0);
@@ -1820,6 +1825,11 @@ async function removerFundoFotoSelecionada() {
       const maxRedBlue = r > b ? r : b;
       if (g > 50 && (g - maxRedBlue) > 16) {
         data[i + 3] = 0; // Transparente
+      } else {
+        // Spill Suppressor: reduz as bordas verdes e reflexos na pele/roupas
+        if (g > maxRedBlue) {
+          data[i + 1] = maxRedBlue; // Reduz canal G
+        }
       }
     }
     tCtx.putImageData(frame, 0, 0);
