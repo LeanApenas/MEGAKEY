@@ -528,6 +528,15 @@
         </button>
       </div>
 
+      <!-- BOTÃO DE UPLOAD DE FOTO NA GALERIA -->
+      <div class="gallery-import-row" style="margin-bottom: 6px;">
+        <button class="gallery-nav-btn" onclick="triggerImportarFoto()" style="width: 100%; justify-content: center; background: rgba(0, 212, 255, 0.06); border: 1px solid rgba(0, 212, 255, 0.2); color: var(--accent-blue); display: flex; align-items: center; gap: 6px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upar/Importar Foto...
+        </button>
+        <input type="file" id="inputImportarFoto" accept="image/*" style="display:none" onchange="importarFotoGaleria(this)" />
+      </div>
+
       <div class="thumbnails-grid" id="thumbnailsGrid">
         <div class="thumb-placeholder">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>

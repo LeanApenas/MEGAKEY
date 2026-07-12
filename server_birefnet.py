@@ -22,7 +22,7 @@ import io
 import base64
 import sys
 import os
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from PIL import Image
 import numpy as np
@@ -98,6 +98,71 @@ except Exception as e:
 # ============================================================
 # ENDPOINTS
 # ============================================================
+
+@app.route("/", methods=["GET"])
+def home():
+    return """
+    <html>
+        <head>
+            <title>MEGAKEY — Servidor BiRefNet</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #08080f;
+                    color: #f0f0ff;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                }
+                .card {
+                    background: #131325;
+                    border: 1px solid rgba(0, 212, 255, 0.2);
+                    padding: 40px;
+                    border-radius: 12px;
+                    text-align: center;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                    max-width: 500px;
+                }
+                h1 {
+                    color: #00D4FF;
+                    margin-top: 0;
+                    letter-spacing: 1px;
+                }
+                p {
+                    color: #9898be;
+                    line-height: 1.6;
+                }
+                .status {
+                    background: rgba(16, 185, 129, 0.15);
+                    border: 1px solid #10b981;
+                    color: #10b981;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    display: inline-block;
+                    font-weight: bold;
+                    margin-bottom: 20px;
+                }
+                code {
+                    background: #08080f;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    color: #9D5FFF;
+                    font-family: monospace;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="status">🟢 SERVIDORES INTEGRADOS ONLINE</div>
+                <h1>MEGAKEY BiRefNet API</h1>
+                <p>Este servidor local está em execução para gerenciar as funções de remoção de fundo com Inteligência Artificial do seu app <strong>MEGAKEY</strong>.</p>
+                <p>Para verificar o status completo da API, acesse o endpoint de saúde em: <a href="/health" style="color:#00D4FF;text-decoration:none;"><code>/health</code></a></p>
+            </div>
+        </body>
+    </html>
+    """
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -193,9 +258,62 @@ def remove_bg_base64():
             "formato": "PNG",
             "modo": "birefnet" if modelo_carregado else "demo"
         })
-
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/save-photo", methods=["POST"])
+def save_photo():
+    data = request.get_json()
+    if not data or "image_b64" not in data or "filename" not in data:
+        return jsonify({"erro": "Parametros ausentes"}), 400
+
+    try:
+        filename = data["filename"]
+        filename = os.path.basename(filename)
+        
+        # Pasta de destino
+        destino_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "capturas")
+        os.makedirs(destino_dir, exist_ok=True)
+        
+        filepath = os.path.join(destino_dir, filename)
+        
+        img_data = data["image_b64"]
+        if "," in img_data:
+            img_data = img_data.split(",")[1]
+            
+        img_bytes = base64.b64decode(img_data)
+        
+        with open(filepath, "wb") as f:
+            f.write(img_bytes)
+            
+        print(f"📸 Foto salva localmente: {filepath}")
+        return jsonify({
+            "status": "sucesso",
+            "caminho": filepath
+        })
+    except Exception as e:
+        print(f"Erro ao salvar foto localmente: {e}")
+        return jsonify({"erro": str(e)}), 500
+
+
+# Pasta para colocar imagens de fundos personalizados localmente
+FUNDOS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fundos")
+os.makedirs(FUNDOS_DIR, exist_ok=True)
+
+@app.route("/list-backgrounds", methods=["GET"])
+def list_backgrounds():
+    formatos = (".png", ".jpg", ".jpeg", ".webp")
+    imagens = []
+    if os.path.exists(FUNDOS_DIR):
+        for f in os.listdir(FUNDOS_DIR):
+            if f.lower().endswith(formatos):
+                imagens.append(f)
+    return jsonify({"backgrounds": imagens})
+
+@app.route("/background/<path:filename>", methods=["GET"])
+def get_background(filename):
+    return send_from_directory(FUNDOS_DIR, filename)
 
 
 # ============================================================

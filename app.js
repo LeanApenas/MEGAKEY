@@ -364,6 +364,9 @@ function capturarFoto() {
 
   mostrarToast(`📸 ${nome}`, 'success');
   adicionarMiniatura(frameDataURL, nome);
+  if (frameDataURL) {
+    salvarFotoNoDiscoLocal(frameDataURL, nome);
+  }
 }
 
 function adicionarMiniatura(frameDataURL = null, nome = '') {
@@ -1410,6 +1413,26 @@ function inicializarPainelFundo() {
     if (input) input.value = savedURL;
   }
 
+  // Testa a conexão silenciosamente na inicialização
+  verificarConexaoBiRefNetSilencioso();
+}
+
+async function verificarConexaoBiRefNetSilencioso() {
+  const url = Estado.fundo.birefnetURL;
+  try {
+    const resp = await fetch(`${url}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(2000)
+    });
+    if (resp.ok) {
+      Estado.fundo.birefnetOnline = true;
+      carregarFundosLocaisDoServidor();
+    } else {
+      Estado.fundo.birefnetOnline = false;
+    }
+  } catch (err) {
+    Estado.fundo.birefnetOnline = false;
+  }
   atualizarStatusFundo();
 }
 
@@ -1763,10 +1786,14 @@ async function removerFundoFotoSelecionada() {
   // Atualiza a miniatura com resultado
   const novoDataURL = resultCanvas.toDataURL('image/jpeg', 0.95);
   sel.src = novoDataURL;
+
+  const agoraFundo = new Date();
+  const nomeFundo = `IMG_FUNDO_${agoraFundo.getFullYear()}${String(agoraFundo.getMonth()+1).padStart(2,'0')}${String(agoraFundo.getDate()).padStart(2,'0')}_${String(agoraFundo.getHours()).padStart(2,'0')}${String(agoraFundo.getMinutes()).padStart(2,'0')}${String(agoraFundo.getSeconds()).padStart(2,'0')}.jpg`;
+  
+  salvarFotoNoDiscoLocal(novoDataURL, nomeFundo);
+
   sel.closest('.thumb-item').ondblclick = () => {
-    const agora = new Date();
-    const nome = `IMG_FUNDO_${agora.getTime()}.jpg`;
-    abrirFotoAmpliada(novoDataURL, nome);
+    abrirFotoAmpliada(novoDataURL, nomeFundo);
   };
 }
 
@@ -1794,6 +1821,7 @@ async function testarConexaoBiRefNet() {
       Estado.fundo.birefnetOnline = true;
       Estado.fundo.birefnetURL = url;
       atualizarStatusFundo();
+      carregarFundosLocaisDoServidor();
     } else {
       throw new Error(`Status: ${resp.status}`);
     }
@@ -1831,4 +1859,120 @@ function atualizarStatusFundo() {
     dot.className = 'bg-status-dot error';
     txt.textContent = 'Servidor BiRefNet offline';
   }
+}
+
+async function salvarFotoNoDiscoLocal(dataURL, nome) {
+  if (!Estado.fundo.birefnetOnline) return;
+
+  try {
+    const response = await fetch(`${Estado.fundo.birefnetURL}/save-photo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        image_b64: dataURL,
+        filename: nome
+      })
+    });
+    if (response.ok) {
+      const res = await response.json();
+      console.log('Foto salva localmente em:', res.caminho);
+      mostrarToast(`💾 Salva no disco: ${nome}`, 'success');
+    }
+  } catch (err) {
+    console.error('Falha ao salvar foto localmente:', err);
+  }
+}
+
+// ---- IMPORTAR FOTO PERSONALIZADA PARA A GALERIA ----
+function triggerImportarFoto() {
+  document.getElementById('inputImportarFoto').click();
+}
+
+function importarFotoGaleria(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      // Adiciona na galeria de miniaturas
+      adicionarMiniatura(e.target.result, file.name);
+      mostrarToast(`📥 Foto importada: ${file.name}`, 'success');
+      
+      // Salva no disco local automaticamente
+      salvarFotoNoDiscoLocal(e.target.result, file.name);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---- CARREGAR FUNDOS LOCAIS DO SERVIDOR ----
+async function carregarFundosLocaisDoServidor() {
+  if (!Estado.fundo.birefnetOnline) return;
+
+  try {
+    const response = await fetch(`${Estado.fundo.birefnetURL}/list-backgrounds`);
+    if (response.ok) {
+      const data = await response.json();
+      const backgrounds = data.backgrounds || [];
+      
+      if (backgrounds.length > 0) {
+        adicionarFundosServidorNaGrid(backgrounds);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao carregar fundos do servidor:', err);
+  }
+}
+
+function adicionarFundosServidorNaGrid(backgrounds) {
+  const grid = document.getElementById('bgGrid');
+  
+  // Remove itens dinâmicos antigos se houver
+  document.querySelectorAll('.bg-option-dynamic').forEach(el => el.remove());
+  
+  backgrounds.forEach(filename => {
+    const url = `${Estado.fundo.birefnetURL}/background/${filename}`;
+    const id = `bgOpt-dynamic-${filename.replace(/\.[^/.]+$/, "")}`;
+    
+    const bgOpt = document.createElement('div');
+    bgOpt.className = 'bg-option bg-option-dynamic';
+    bgOpt.id = id;
+    bgOpt.title = filename;
+    
+    // Configura o clique no fundo local
+    bgOpt.onclick = () => {
+      document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
+      bgOpt.classList.add('selected');
+      
+      const img = new Image();
+      img.onload = () => {
+        Estado.fundo.imagemUpload = img;
+        Estado.fundo.imagemDataURL = url;
+        Estado.fundo.tipo = 'upload'; // Trata como imagem de upload carregada
+        mostrarToast(`Fundo local: ${filename}`, 'info');
+      };
+      img.src = url;
+    };
+    
+    const preview = document.createElement('div');
+    preview.className = 'bg-opt-preview';
+    preview.style.backgroundImage = `url(${url})`;
+    preview.style.backgroundSize = 'cover';
+    preview.style.backgroundPosition = 'center';
+    
+    const span = document.createElement('span');
+    span.textContent = filename.split('.')[0]; // Nome amigável sem extensão
+    
+    bgOpt.appendChild(preview);
+    bgOpt.appendChild(span);
+    
+    // Insere antes do botão 'Carregar' (bgOpt-upload)
+    const uploadBtn = document.getElementById('bgOpt-upload');
+    grid.insertBefore(bgOpt, uploadBtn);
+  });
 }
