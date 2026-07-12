@@ -2264,3 +2264,25 @@ function salvarPreferencias() {
   fecharModal('modalPreferencias');
   mostrarToast('Preferências salvas!', 'success');
 }
+
+function baixarFotoSelecionada() {
+  const sel = document.querySelector('.thumb-item.selected img');
+  if (!sel) {
+    mostrarToast('Selecione uma foto na galeria primeiro', 'warning');
+    return;
+  }
+  
+  const link = document.createElement('a');
+  link.href = sel.src;
+  
+  const prefixo = localStorage.getItem('megakey_prefixo_nome') || 'IMG';
+  const agora = new Date();
+  const nome = `${prefixo}_EDITADA_${agora.getTime()}.jpg`;
+  link.download = nome;
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  mostrarToast('📥 Download iniciado no seu navegador!', 'success');
+}
