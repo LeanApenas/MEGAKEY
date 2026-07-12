@@ -1,0 +1,21 @@
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# Caches locais
+.web/
+.vscode/
+.idea/
+
+# Arquivos de imagem locais (capturas de teste)
+IMG_*.jpg
+IMG_*.png
+*.jpeg
+*.webp
+megakey_*.png
+*.mp4
+*.avi

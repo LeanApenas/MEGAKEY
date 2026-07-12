@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MEGAKEY — Controle Remoto de Câmera</title>
+  <meta name="description" content="MEGAKEY — Software profissional de controle remoto de câmera para fotógrafos e estúdios. Controle total, Live View, Time-lapse e muito mais." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- BARRA DE MENUS SUPERIOR -->
+<header class="topbar" id="topbar">
+  <div class="topbar-brand">
+    <div class="brand-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="4" fill="#00D4FF"/>
+        <path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z" stroke="#00D4FF" stroke-width="1.5" fill="none"/>
+        <circle cx="12" cy="12" r="6.5" stroke="#00D4FF" stroke-width="1" stroke-dasharray="2 1" opacity="0.5"/>
+      </svg>
+      <span class="brand-name">MEGAKEY</span>
+    </div>
+    <div class="status-badge" id="statusBadge">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Câmera não conectada</span>
+    </div>
+  </div>
+
+  <nav class="menu-nav" id="menuNav">
+    <!-- MENU ARQUIVO -->
+    <div class="menu-item" id="menuArquivo">
+      <button class="menu-btn" onclick="toggleMenu('menuArquivoDropdown')">Arquivo</button>
+      <div class="dropdown" id="menuArquivoDropdown">
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="renomearImagem()">Renomear Imagem <span class="shortcut">Ctrl+R</span></button>
+          <button class="dd-item" onclick="excluirImagem()">Excluir Imagem <span class="shortcut">Del</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirConfigEditor()">Configurar Editor de Imagem...</button>
+          <button class="dd-item" onclick="abrirGerenciamentoCor()">Configurações de Gerenciamento de Cor...</button>
+          <button class="dd-item" onclick="toggleGerenciamentoCor()">Ativar Gerenciamento de Cor <span class="shortcut">Ctrl+M</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="editarIPTC()">Editar IPTC...</button>
+          <button class="dd-item" onclick="adicionarIPTC()">Adicionar dados IPTC às imagens</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirConfiguracaoImpressora()">Configuração de Impressora...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirAssistenteFotobooth()">Assistente de Configuração Fotobooth...</button>
+          <button class="dd-item" onclick="salvarConfiguracoesFotobooth()">Salvar Configurações Fotobooth...</button>
+          <button class="dd-item" onclick="abrirConfiguracoesFotobooth()">Configurações Fotobooth... <span class="shortcut">Ctrl+S</span></button>
+          <button class="dd-item" onclick="abrirConfiguracoesVideobooth()">Configurações Videobooth... <span class="shortcut">Ctrl+V</span></button>
+          <button class="dd-item" onclick="abrirServidorEmail()">Configurações do Servidor de Email...</button>
+          <button class="dd-item" onclick="enviarEmailSMS()">Enviar Emails e MMS/SMS...</button>
+          <button class="dd-item" onclick="editarQRCode()">Editar QR Code...</button>
+          <button class="dd-item" onclick="qrCodeUnico()">QR Codes de uso único...</button>
+          <button class="dd-item" onclick="modoFotobooth()">Modo Fotobooth Tela Cheia... <span class="shortcut">Ctrl+F4</span></button>
+          <button class="dd-item" onclick="reimprimirFotos()">Reimprimir Fotos <span class="shortcut">Ctrl+Shift+R</span></button>
+          <button class="dd-item" onclick="imprimirFotosSelecionadas()">Imprimir Fotos Fotobooth Selecionadas...</button>
+          <button class="dd-item" onclick="infoEventoFotobooth()">Informações do evento Fotobooth... <span class="shortcut">Ctrl+Shift+I</span></button>
+          <button class="dd-item" onclick="remocaoFundoIA()">Executar ferramenta de Remoção de Fundo por IA...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="atualizar()">Atualizar <span class="shortcut">F5</span></button>
+          <button class="dd-item" onclick="abrirPreferencias()">Preferências... <span class="shortcut">Ctrl+P</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <button class="dd-item dd-danger" onclick="sair()">Sair</button>
+      </div>
+    </div>
+
+    <!-- MENU CÂMERA -->
+    <div class="menu-item" id="menuCamera">
+      <button class="menu-btn" onclick="toggleMenu('menuCameraDropdown')">Câmera</button>
+      <div class="dropdown" id="menuCameraDropdown">
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="toggleLiveView()">Live View <span class="shortcut">Ctrl+L</span></button>
+          <button class="dd-item" onclick="toggleTelaEscura()">Escurecer tela ao fotografar</button>
+          <button class="dd-item" onclick="toggleIgnorarEventos()">Ignorar eventos de atualização da câmera</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item disabled">Configurações de Imagem...</button>
+          <button class="dd-item disabled">Definir data/hora e string do proprietário...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" id="btnSalvarPC" onclick="setSalvarModo('pc')"><span class="check-mark active" id="checkPC">✓</span> Salvar somente no PC</button>
+          <button class="dd-item" id="btnSalvarAmbos" onclick="setSalvarModo('ambos')"><span class="check-mark" id="checkAmbos">✓</span> Salvar na Câmera e no PC</button>
+          <button class="dd-item" id="btnSalvarCamera" onclick="setSalvarModo('camera')"><span class="check-mark" id="checkCamera">✓</span> Salvar somente na Câmera</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item disabled">Baixar Vídeos...</button>
+          <button class="dd-item disabled">Formatar cartão de memória...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="toggleMirrorLockup()">Travamento de Espelho</button>
+          <button class="dd-item" onclick="abrirTimeLapse()">Time Lapse...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="conectarCamera()">Conectar à Câmera</button>
+          <button class="dd-item" onclick="toggleAutoReconectar()"><span class="check-mark active" id="checkAutoReconectar">✓</span> Reconexão Automática</button>
+          <button class="dd-item" onclick="toggleWebcam()">Modo Webcam</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MENU VISUALIZAÇÃO -->
+    <div class="menu-item" id="menuVisualizacao">
+      <button class="menu-btn" onclick="toggleMenu('menuVisualizacaoDropdown')">Visualização</button>
+      <div class="dropdown" id="menuVisualizacaoDropdown">
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="toggleAtalhosFootobooth()"><span class="check-mark active" id="checkAtalhosFoto">✓</span> Atalhos Fotobooth</button>
+          <button class="dd-item" onclick="abrirConfigAtalhosFootobooth()">Configurações de Atalhos Fotobooth...</button>
+          <button class="dd-item" onclick="toggleControlsCamera()"><span class="check-mark active" id="checkControls">✓</span> Mostrar Controles da Câmera</button>
+          <button class="dd-item" onclick="abrirModoBloqueo()">Modo de Bloqueio...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirConfigGrade()">Configurações de Grade...</button>
+          <button class="dd-item" onclick="toggleGrade()">Exibir Grade <span class="shortcut">Ctrl+G</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirConfigDestaques()">Configurações de Destaques...</button>
+          <button class="dd-item" onclick="toggleDestaques()">Destaques Piscantes <span class="shortcut">Ctrl+H</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="togglePontosAF()">Pontos de Foco <span class="shortcut">Ctrl+F</span></button>
+          <button class="dd-item" onclick="telaCheia()">Tela Cheia <span class="shortcut">F11</span></button>
+          <button class="dd-item" onclick="organizarJanelas()">Organizar Janelas <span class="shortcut">Ctrl+A</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="toggleModoPB()">Modo Preto e Branco <span class="shortcut">Ctrl+W</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirConfigNitidez()">Configurações de Nitidez...</button>
+          <button class="dd-item" onclick="toggleNitidezHQ()">Nitidez HQ <span class="shortcut">Ctrl+Q</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="toggleSuprimirImagem()">Suprimir Exibição de Imagem</button>
+          <button class="dd-item" onclick="visualizarImagem()">Visualizar Imagem <span class="shortcut">F7</span></button>
+          <button class="dd-item" onclick="editarImagem()">Editar Imagem <span class="shortcut">Ctrl+E</span></button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" id="btnPaisagem" onclick="setOrientacao('paisagem')"><span class="check-mark active" id="checkPaisagem">✓</span> Paisagem</button>
+          <button class="dd-item" id="btnRetrato90CCW" onclick="setOrientacao('retrato-ccw')"><span class="check-mark" id="checkRetratoCCW">✓</span> Retrato (90° no sentido anti-horário)</button>
+          <button class="dd-item" id="btnRetrato90CW" onclick="setOrientacao('retrato-cw')"><span class="check-mark" id="checkRetratoCW">✓</span> Retrato (90° no sentido horário)</button>
+          <button class="dd-item" id="btnInvertido" onclick="setOrientacao('invertido')"><span class="check-mark" id="checkInvertido">✓</span> Invertido</button>
+          <button class="dd-item" onclick="toggleSensorOrientacao()">Usar Sensor de Orientação</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MENU FERRAMENTAS -->
+    <div class="menu-item" id="menuFerramentas">
+      <button class="menu-btn" onclick="toggleMenu('menuFerramentasDropdown')">Ferramentas</button>
+      <div class="dropdown" id="menuFerramentasDropdown">
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="relatorioCompartilhamento()">Relatório de compartilhamento Fotobooth...</button>
+          <button class="dd-item" onclick="relatorioPesquisa()">Relatório de dados de pesquisa Fotobooth...</button>
+          <button class="dd-item" onclick="relatorioEstatisticas()">Relatório de estatísticas da sessão Fotobooth...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirUploader()">Uploader...</button>
+          <button class="dd-item" onclick="exportarConfiguracoes()">Exportar configurações para arquivo...</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <button class="dd-item" onclick="abrirStatusURL()">URL de Status...</button>
+      </div>
+    </div>
+
+    <!-- MENU AJUDA -->
+    <div class="menu-item" id="menuAjuda">
+      <button class="menu-btn" onclick="toggleMenu('menuAjudaDropdown')">Ajuda</button>
+      <div class="dropdown" id="menuAjudaDropdown">
+        <div class="dropdown-group">
+          <button class="dd-item" onclick="abrirConteudo()">Conteúdo...</button>
+          <button class="dd-item" onclick="verificarAtualizacoes()">Verificar atualizações online</button>
+        </div>
+        <div class="dropdown-separator"></div>
+        <button class="dd-item" onclick="abrirSobre()">Sobre o MEGAKEY...</button>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- ATALHOS FOTOBOOTH -->
+<div class="photobooth-bar" id="photoboothBar">
+  <span class="pb-label">Atalhos Fotobooth</span>
+  <div class="pb-actions">
+    <button class="pb-btn" id="btnConfImpressora" onclick="abrirConfiguracaoImpressora()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Conf. Impressora
+    </button>
+    <button class="pb-btn" id="btnAssistente" onclick="abrirAssistenteFotobooth()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Assistente Fotobooth
+    </button>
+    <button class="pb-btn" id="btnLayoutImpressao" onclick="abrirLayoutImpressao()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Layout de Impressão
+    </button>
+    <button class="pb-btn" id="btnConfigAvancadas" onclick="abrirConfigAvancadas()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Config. Avançadas
+    </button>
+    <button class="pb-btn pb-btn-primary" id="btnIniciarFotobooth" onclick="iniciarFotobooth()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Iniciar Fotobooth
+    </button>
+  </div>
+</div>
+
+<!-- LAYOUT PRINCIPAL -->
+<main class="main-layout" id="mainLayout">
+
+  <!-- PAINEL ESQUERDO — CONTROLES -->
+  <aside class="controls-panel" id="controlsPanel">
+
+    <!-- CONTROLES DE DISPARO -->
+    <div class="control-section">
+      <div class="shoot-controls">
+        <button class="btn-release" id="btnRelease" onclick="disparar()">
+          <div class="release-inner">
+            <div class="release-ring"></div>
+            <div class="release-ring r2"></div>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z"/>
+            </svg>
+          </div>
+          <span>Disparar <kbd>F8</kbd></span>
+        </button>
+        <button class="btn-preview" id="btnPreview" onclick="visualizarPreview()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><eye/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview <kbd>F9</kbd>
+        </button>
+      </div>
+
+      <div class="control-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="chkAutoBracket" onchange="toggleAutoBracket()" />
+          <span class="toggle-switch"></span>
+          <span>Auto-bracket</span>
+        </label>
+        <button class="btn-settings-sm" onclick="abrirSettingsAutoBracket()">Configurações...</button>
+      </div>
+
+      <div class="control-row">
+        <label class="control-label">Espaço de Cor:</label>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- INFORMAÇÕES DA CÂMERA -->
+    <div class="control-section">
+      <div class="camera-info-row">
+        <span class="info-label">Velocidade do obturador:</span>
+      </div>
+      <div class="camera-info-row">
+        <span class="info-label">Botão AF lock:</span>
+      </div>
+      <div class="camera-info-row">
+        <span class="info-label">Status Mirror Lockup:</span>
+      </div>
+      <div class="camera-info-row">
+        <span class="info-label">Tv:</span>
+        <div class="info-controls">
+          <select class="ctrl-select" id="selectTv" onchange="setTv(this.value)">
+            <option value="">—</option>
+          </select>
+          <select class="ctrl-select" id="selectAv" onchange="setAv(this.value)">
+            <option value="">Av</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- CONFIGURAÇÕES DE CÂMERA -->
+    <div class="control-section">
+
+      <div class="setting-row">
+        <label class="setting-label">Modo de Exposição:</label>
+        <select class="ctrl-select" id="selectExposicao" onchange="setExposicao(this.value)">
+          <option value="">—</option>
+          <option value="manual">Manual</option>
+          <option value="av">Prioridade de Abertura</option>
+          <option value="tv">Prioridade de Obturador</option>
+          <option value="p">Programa</option>
+          <option value="auto">Auto</option>
+          <option value="bulb">Bulb</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Compensação de Exposição:</label>
+        <select class="ctrl-select" id="selectCompensacao" onchange="setCompensacao(this.value)">
+          <option value="0">0</option>
+          <option value="+1/3">+1/3</option>
+          <option value="+2/3">+2/3</option>
+          <option value="+1">+1</option>
+          <option value="+1 1/3">+1 1/3</option>
+          <option value="+1 2/3">+1 2/3</option>
+          <option value="+2">+2</option>
+          <option value="+2 1/3">+2 1/3</option>
+          <option value="+2 2/3">+2 2/3</option>
+          <option value="+3">+3</option>
+          <option value="-1/3">-1/3</option>
+          <option value="-2/3">-2/3</option>
+          <option value="-1">-1</option>
+          <option value="-1 1/3">-1 1/3</option>
+          <option value="-1 2/3">-1 2/3</option>
+          <option value="-2">-2</option>
+          <option value="-2 1/3">-2 1/3</option>
+          <option value="-2 2/3">-2 2/3</option>
+          <option value="-3">-3</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">ISO:</label>
+        <select class="ctrl-select" id="selectISO" onchange="setISO(this.value)">
+          <option value="">—</option>
+          <option value="auto">Auto</option>
+          <option value="100">ISO 100</option>
+          <option value="200">ISO 200</option>
+          <option value="400">ISO 400</option>
+          <option value="800">ISO 800</option>
+          <option value="1600">ISO 1600</option>
+          <option value="3200">ISO 3200</option>
+          <option value="6400">ISO 6400</option>
+          <option value="12800">ISO 12800</option>
+          <option value="25600">ISO 25600</option>
+          <option value="51200">ISO 51200</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Tamanho/Qualidade:</label>
+        <select class="ctrl-select" id="selectQualidade" onchange="setQualidade(this.value)">
+          <option value="">—</option>
+          <option value="raw">RAW</option>
+          <option value="raw+jpeg">RAW + JPEG</option>
+          <option value="jpeg-large-fine">JPEG Grande (Alta qualidade)</option>
+          <option value="jpeg-large-normal">JPEG Grande (Normal)</option>
+          <option value="jpeg-medium-fine">JPEG Médio (Alta qualidade)</option>
+          <option value="jpeg-small">JPEG Pequeno</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Balanço de Branco:</label>
+        <select class="ctrl-select" id="selectWB" onchange="setWB(this.value)">
+          <option value="">—</option>
+          <option value="auto">Auto</option>
+          <option value="daylight">Luz do dia</option>
+          <option value="shade">Sombra</option>
+          <option value="cloudy">Nublado</option>
+          <option value="tungsten">Tungstênio</option>
+          <option value="fluorescent">Fluorescente</option>
+          <option value="flash">Flash</option>
+          <option value="custom">Personalizado</option>
+          <option value="kelvin">Temperatura (K)</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Temperatura de Cor:</label>
+        <div class="temp-control">
+          <input type="range" id="sliderTemp" min="2500" max="10000" step="100" value="5500" oninput="setTemperatura(this.value)" class="ctrl-slider" />
+          <span class="temp-value" id="tempValue">5500K</span>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Modo de Medição:</label>
+        <select class="ctrl-select" id="selectMedicao" onchange="setMedicao(this.value)">
+          <option value="">—</option>
+          <option value="evaluative">Avaliativa</option>
+          <option value="partial">Parcial</option>
+          <option value="spot">Ponto</option>
+          <option value="center">Centro Ponderado</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Modo de Drive:</label>
+        <select class="ctrl-select" id="selectDrive" onchange="setDrive(this.value)">
+          <option value="">—</option>
+          <option value="single">Foto única</option>
+          <option value="continuous">Contínuo</option>
+          <option value="continuous-h">Contínuo Alta Velocidade</option>
+          <option value="self10">Temporizador 10s</option>
+          <option value="self2">Temporizador 2s</option>
+          <option value="self10-cont">Temporizador 10s + Contínuo</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Modo AF:</label>
+        <select class="ctrl-select" id="selectAF" onchange="setAF(this.value)">
+          <option value="">—</option>
+          <option value="one-shot">One Shot</option>
+          <option value="ai-servo">AI Servo</option>
+          <option value="ai-focus">AI Focus</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label">Detalhe de AF:</label>
+        <select class="ctrl-select" id="selectAFDetail" onchange="setAFDetail(this.value)">
+          <option value="">—</option>
+          <option value="auto">Auto</option>
+          <option value="center">Centro</option>
+          <option value="zone">Zona</option>
+          <option value="point">Ponto único</option>
+          <option value="expand">Expandir ponto</option>
+          <option value="tracking">Rastreamento</option>
+        </select>
+      </div>
+    </div>
+
+    </div>
+  </aside>
+
+  <!-- ÁREA CENTRAL — LIVE VIEW -->
+  <section class="liveview-area" id="liveviewArea">
+    <div class="liveview-container" id="liveviewContainer">
+      <div class="liveview-disconnected" id="liveviewDisconnected">
+        <div class="disconnect-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z"/>
+            <circle cx="12" cy="12" r="4"/>
+            <line x1="1" y1="1" x2="23" y2="23" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <h2>Câmera não conectada</h2>
+        <p>Conecte sua câmera via USB ou Wi-Fi para começar</p>
+        <button class="btn-connect" id="btnConectar" onclick="conectarCamera()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          Conectar Câmera
+        </button>
+      </div>
+
+      <!-- Canvas do Live View (ativo quando conectado) -->
+      <canvas id="liveviewCanvas" class="liveview-canvas" style="display:none;"></canvas>
+
+      <!-- Grade overlay -->
+      <div class="grid-overlay" id="gridOverlay" style="display:none;">
+        <div class="grid-line grid-h" style="top:33.33%"></div>
+        <div class="grid-line grid-h" style="top:66.66%"></div>
+        <div class="grid-line grid-v" style="left:33.33%"></div>
+        <div class="grid-line grid-v" style="left:66.66%"></div>
+      </div>
+    </div>
+
+    <!-- Barra de ferramentas do Live View -->
+    <div class="liveview-toolbar" id="liveviewToolbar">
+      <div class="toolbar-group">
+        <button class="tool-btn" id="btnZoomOut" onclick="zoomOut()" title="Diminuir zoom">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
+        <span class="zoom-level" id="zoomLevel">100%</span>
+        <button class="tool-btn" id="btnZoomIn" onclick="zoomIn()" title="Aumentar zoom">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
+        <button class="tool-btn" id="btnFitView" onclick="fitView()" title="Ajustar à tela">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tool-btn" id="btnGrade" onclick="toggleGrade()" title="Exibir grade">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+        </button>
+        <button class="tool-btn" id="btnPB" onclick="toggleModoPB()" title="Preto e branco">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20" fill="currentColor"/></svg>
+        </button>
+        <button class="tool-btn" id="btnLiveViewToggle" onclick="toggleLiveView()" title="Live View">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Live View
+        </button>
+      </div>
+      <div class="toolbar-group">
+        <div class="histogram-mini" id="histogramMini">
+          <canvas id="histogramCanvas" width="80" height="32"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAINEL DIREITO — GALERIA & FUNDO VIRTUAL -->
+  <aside class="right-panel" id="rightPanel">
+
+    <!-- GALERIA DE MINIATURAS -->
+    <div class="control-section">
+      <div class="gallery-nav">
+        <button class="gallery-nav-btn" id="btnPrevImg" onclick="prevImagem()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Imagem Anterior
+        </button>
+        <button class="gallery-nav-btn" id="btnNextImg" onclick="nextImagem()">
+          Próxima Imagem
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <div class="thumbnails-grid" id="thumbnailsGrid">
+        <div class="thumb-placeholder">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+      </div>
+
+      <div class="comment-row">
+        <label class="setting-label">Comentário:</label>
+        <input type="text" class="ctrl-input" id="inputComentario" placeholder="Adicionar comentário..." />
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PAINEL DE FUNDO — BiRefNet -->
+    <div class="control-section bg-panel-section">
+
+      <!-- Cabeçalho do painel -->
+      <div class="bg-panel-header">
+        <div class="bg-panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+          <span>Fundo Virtual</span>
+          <span class="ai-badge">BiRefNet IA</span>
+        </div>
+        <label class="toggle-label">
+          <input type="checkbox" id="chkRemoverFundo" onchange="toggleRemoverFundo()" />
+          <span class="toggle-switch"></span>
+        </label>
+      </div>
+
+      <!-- Status da IA -->
+      <div class="bg-status-bar" id="bgStatusBar">
+        <div class="bg-status-dot" id="bgStatusDot"></div>
+        <span id="bgStatusText">IA desativada</span>
+        <button class="bg-config-btn" onclick="abrirConfigBiRefNet()" title="Configurar servidor BiRefNet">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Seletor de Fundos -->
+      <div class="bg-grid" id="bgGrid">
+
+        <!-- Sem fundo (transparente) -->
+        <div class="bg-option bg-transparent-opt selected" id="bgOpt-none" onclick="selecionarFundo('none')" title="Sem fundo">
+          <div class="bg-opt-preview bg-preview-transparent">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+          <span>Nenhum</span>
+        </div>
+
+        <!-- COR: Preto -->
+        <div class="bg-option" id="bgOpt-black" onclick="selecionarFundo('color-black')" title="Fundo preto">
+          <div class="bg-opt-preview" style="background:#000;"></div>
+          <span>Preto</span>
+        </div>
+
+        <!-- COR: Branco -->
+        <div class="bg-option" id="bgOpt-white" onclick="selecionarFundo('color-white')" title="Fundo branco">
+          <div class="bg-opt-preview" style="background:#fff;"></div>
+          <span>Branco</span>
+        </div>
+
+        <!-- COR: Cinza -->
+        <div class="bg-option" id="bgOpt-gray" onclick="selecionarFundo('color-gray')" title="Fundo cinza">
+          <div class="bg-opt-preview" style="background:#555;"></div>
+          <span>Cinza</span>
+        </div>
+
+        <!-- GRADIENTE: Azul -->
+        <div class="bg-option" id="bgOpt-grad-blue" onclick="selecionarFundo('grad-blue')" title="Gradiente azul">
+          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);"></div>
+          <span>Oceano</span>
+        </div>
+
+        <!-- GRADIENTE: Roxo -->
+        <div class="bg-option" id="bgOpt-grad-purple" onclick="selecionarFundo('grad-purple')" title="Gradiente roxo">
+          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#1a0533,#4a1080,#7c3aed);"></div>
+          <span>Galáxia</span>
+        </div>
+
+        <!-- GRADIENTE: Dourado -->
+        <div class="bg-option" id="bgOpt-grad-gold" onclick="selecionarFundo('grad-gold')" title="Gradiente dourado">
+          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#1a0a00,#7c3d00,#f59e0b);"></div>
+          <span>Âmbar</span>
+        </div>
+
+        <!-- GRADIENTE: Verde -->
+        <div class="bg-option" id="bgOpt-grad-green" onclick="selecionarFundo('grad-green')" title="Gradiente verde">
+          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#001a0a,#004d20,#10b981);"></div>
+          <span>Floresta</span>
+        </div>
+
+        <!-- COR: Verde Chroma -->
+        <div class="bg-option" id="bgOpt-chroma" onclick="selecionarFundo('color-chroma')" title="Verde Chroma Key">
+          <div class="bg-opt-preview" style="background:#00b140;"></div>
+          <span>Chroma</span>
+        </div>
+
+        <!-- UPLOAD -->
+        <div class="bg-option bg-upload-opt" id="bgOpt-upload" onclick="uploadFundo()" title="Carregar imagem">
+          <div class="bg-opt-preview bg-preview-upload" id="bgPreviewUpload">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <span>Carregar</span>
+        </div>
+
+      </div>
+
+      <!-- Input oculto para upload -->
+      <input type="file" id="inputFundoImg" accept="image/*" style="display:none" onchange="carregarImagemFundo(this)" />
+
+      <!-- Controles de intensidade -->
+      <div class="bg-controls" id="bgControls" style="display:none">
+        <div class="setting-row">
+          <label class="setting-label">Suavidade da borda</label>
+          <div class="temp-control">
+            <input type="range" id="sliderBordaIA" min="0" max="20" value="6" oninput="setBordaIA(this.value)" class="ctrl-slider" />
+            <span class="temp-value" id="bordaIAValue">6px</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label class="setting-label">Opacidade do fundo</label>
+          <div class="temp-control">
+            <input type="range" id="sliderOpacidadeFundo" min="0" max="100" value="100" oninput="setOpacidadeFundo(this.value)" class="ctrl-slider" />
+            <span class="temp-value" id="opacidadeFundoValue">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botão remoção de fundo em foto -->
+      <button class="btn-remover-fundo" id="btnRemoverFundoFoto" onclick="removerFundoFotoSelecionada()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <path d="M17 8l-5-5-5 5M12 3v12"/>
+        </svg>
+        Aplicar fundo na foto selecionada
+      </button>
+
+    </div>
+  </aside>
+
+</main>
+
+<!-- MODAIS -->
+
+<!-- Modal Sobre -->
+<div class="modal-overlay" id="modalSobre" onclick="fecharModal('modalSobre')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-logo">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="4" fill="#00D4FF"/>
+          <path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z" stroke="#00D4FF" stroke-width="1.5" fill="none"/>
+        </svg>
+        <h2>MEGAKEY</h2>
+      </div>
+      <button class="modal-close" onclick="fecharModal('modalSobre')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-version">Versão 1.0.0</p>
+      <p>Software profissional de controle remoto de câmera para fotógrafos e estúdios.</p>
+      <p class="modal-copyright">© 2026 MEGAKEY. Todos os direitos reservados.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-ok" onclick="fecharModal('modalSobre')">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Time Lapse -->
+<div class="modal-overlay" id="modalTimeLapse" onclick="fecharModal('modalTimeLapse')">
+  <div class="modal-box modal-large" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⏱ Configurações de Time-Lapse</h3>
+      <button class="modal-close" onclick="fecharModal('modalTimeLapse')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Intervalo entre fotos</label>
+          <div class="input-unit">
+            <input type="number" id="tlIntervalo" value="5" min="1" max="9999" class="ctrl-input" />
+            <span class="unit">segundos</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Número de fotos</label>
+          <input type="number" id="tlNumFotos" value="100" min="1" max="99999" class="ctrl-input" />
+        </div>
+        <div class="form-group">
+          <label>Duração total estimada</label>
+          <span class="info-value" id="tlDuracao">8 min 20 seg</span>
+        </div>
+        <div class="form-group">
+          <label>Atraso inicial</label>
+          <div class="input-unit">
+            <input type="number" id="tlAtraso" value="0" min="0" max="999" class="ctrl-input" />
+            <span class="unit">segundos</span>
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label class="toggle-label">
+            <input type="checkbox" id="tlApagarAposDownload" />
+            <span class="toggle-switch"></span>
+            <span>Apagar foto da câmera após download</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="fecharModal('modalTimeLapse')">Cancelar</button>
+      <button class="btn-modal-ok" onclick="iniciarTimeLapse()">Iniciar Time-Lapse</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Preferências -->
+<div class="modal-overlay" id="modalPreferencias" onclick="fecharModal('modalPreferencias')">
+  <div class="modal-box modal-large" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚙️ Preferências</h3>
+      <button class="modal-close" onclick="fecharModal('modalPreferencias')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="pref-tabs">
+        <button class="pref-tab active" onclick="setPrefTab('geral')">Geral</button>
+        <button class="pref-tab" onclick="setPrefTab('pasta')">Pasta de Destino</button>
+        <button class="pref-tab" onclick="setPrefTab('nomeacao')">Nomeação</button>
+        <button class="pref-tab" onclick="setPrefTab('interface')">Interface</button>
+      </div>
+      <div class="pref-content" id="prefGeral">
+        <div class="form-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="prefAutoConectar" checked />
+            <span class="toggle-switch"></span>
+            <span>Conectar câmera automaticamente ao iniciar</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="prefSomDisparo" checked />
+            <span class="toggle-switch"></span>
+            <span>Reproduzir som ao disparar</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="prefMiniaturasAuto" checked />
+            <span class="toggle-switch"></span>
+            <span>Gerar miniaturas automaticamente</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Idioma da Interface</label>
+          <select class="ctrl-select">
+            <option value="pt-br" selected>Português (Brasil)</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="fecharModal('modalPreferencias')">Cancelar</button>
+      <button class="btn-modal-ok" onclick="salvarPreferencias()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Modal BiRefNet Config -->
+<div class="modal-overlay" id="modalBiRefNet" onclick="fecharModal('modalBiRefNet')">
+  <div class="modal-box modal-large" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>🤖 Configurar Servidor BiRefNet</h3>
+      <button class="modal-close" onclick="fecharModal('modalBiRefNet')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="birefnet-info">
+        <div class="birefnet-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          <strong>BiRefNet</strong> — Estado da Arte em IA para Remoção de Fundo
+        </div>
+        <p style="color:var(--text-secondary);font-size:12px;line-height:1.7">
+          BiRefNet (Bilateral Reference Network) produz remoção de fundo de qualidade absurda — muito superior ao remove.bg — preservando fios de cabelo, bordas transparentes e detalhes finos sem vestígio verde. Requer GPU NVIDIA (mínimo 4GB VRAM).
+        </p>
+      </div>
+
+      <div class="form-group" style="margin-top:8px">
+        <label>URL do servidor BiRefNet local</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="inputBiRefNetURL" class="ctrl-input" value="http://localhost:7860" placeholder="http://localhost:7860" style="flex:1" />
+          <button class="btn-modal-ok" style="white-space:nowrap;padding:6px 14px" onclick="testarConexaoBiRefNet()">Testar</button>
+        </div>
+        <div class="birefnet-status-row" id="birefnetTestResult"></div>
+      </div>
+
+      <div class="birefnet-setup">
+        <div class="setup-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Como instalar o servidor BiRefNet
+        </div>
+        <div class="setup-steps">
+          <div class="setup-step">
+            <span class="step-num">1</span>
+            <div>
+              <strong>Instalar Python e dependências</strong>
+              <code>pip install torch transformers pillow flask flask-cors</code>
+            </div>
+          </div>
+          <div class="setup-step">
+            <span class="step-num">2</span>
+            <div>
+              <strong>Executar o servidor</strong>
+              <code>python server_birefnet.py</code>
+              <span style="color:var(--text-muted);font-size:11px">O arquivo server_birefnet.py está na pasta do MEGAKEY</span>
+            </div>
+          </div>
+          <div class="setup-step">
+            <span class="step-num">3</span>
+            <div>
+              <strong>Aguardar download do modelo (~1.5GB)</strong>
+              <span style="color:var(--text-muted);font-size:11px">Apenas na primeira execução. Requer GPU NVIDIA (4-8GB VRAM)</span>
+            </div>
+          </div>
+          <div class="setup-step">
+            <span class="step-num">4</span>
+            <div>
+              <strong>Clicar em "Testar" e ativar o toggle</strong>
+              <span style="color:var(--text-muted);font-size:11px">Quando o servidor estiver rodando, o status ficará verde</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="toggle-label" style="gap:10px">
+          <input type="checkbox" id="chkBiRefNetTempoReal" />
+          <span class="toggle-switch"></span>
+          <span>Processar em tempo real no Live View (exige GPU potente)</span>
+        </label>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="fecharModal('modalBiRefNet')">Fechar</button>
+      <button class="btn-modal-ok" onclick="salvarConfigBiRefNet()">Salvar Configuração</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
