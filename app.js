@@ -52,7 +52,10 @@ const Estado = {
     birefnetOnline: false,
     birefnetTempoReal: false,
     maskCanvas: null,        // canvas com máscara BiRefNet
-    ultimaMascaraTs: 0
+    ultimaMascaraTs: 0,
+    sujeitoScale: 80,
+    sujeitoX: 50,
+    sujeitoY: 100
   }
 };
 
@@ -464,6 +467,12 @@ function abrirFotoAmpliada(dataURL, nome) {
 function selecionarMiniatura(thumb) {
   document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('selected'));
   thumb.classList.add('selected');
+
+  // Espelha a imagem selecionada na segunda tela se estiver ativa
+  const img = thumb.querySelector('img');
+  if (img && window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.exibirFotoEstatica === 'function') {
+    window.windowTela2.exibirFotoEstatica(img.src);
+  }
 }
 
 function visualizarPreview() {
@@ -555,6 +564,11 @@ function iniciarLiveViewWebcam() {
     ctx.save();
     compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh);
     ctx.restore();
+
+    // Espelha o canvas limpo (sem HUD) na segunda tela
+    if (window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.desenharFrame === 'function') {
+      window.windowTela2.desenharFrame(canvas);
+    }
 
     // Solicita máscara BiRefNet em tempo real (quando ativo)
     if (Estado.fundo.ativo && Estado.fundo.birefnetTempoReal && Estado.fundo.birefnetOnline) {
@@ -1623,15 +1637,27 @@ function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
       // Re-aplica com blur nas bordas (edge feathering simples)
     }
 
-    // Composita sobre o fundo
-    ctx.drawImage(tempCanvas, 0, 0);
+    // Composita sobre o fundo aplicando escala e coordenadas X, Y customizadas
+    const scaleFactor = Estado.fundo.sujeitoScale / 100;
+    const targetW = cw * scaleFactor;
+    const targetH = ch * scaleFactor;
+    const targetX = (cw * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+    const targetY = (ch * (Estado.fundo.sujeitoY / 100)) - targetH;
+
+    ctx.drawImage(tempCanvas, targetX, targetY, targetW, targetH);
 
   } else {
-    // Sem máscara IA: sobrepõe vídeo com modo de composição normal
-    // (usuário vê fundo + vídeo por cima — útil para testar sem GPU)
+    // Sem máscara IA: sobrepõe vídeo com modo de composição normal aplicando escala e coordenadas X, Y
     if (Estado.modoP_B) ctx.filter = 'grayscale(100%)';
     ctx.globalAlpha = 0.95;
-    ctx.drawImage(videoEl, dx, dy, dw, dh);
+
+    const scaleFactor = Estado.fundo.sujeitoScale / 100;
+    const targetW = cw * scaleFactor;
+    const targetH = ch * scaleFactor;
+    const targetX = (cw * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+    const targetY = (ch * (Estado.fundo.sujeitoY / 100)) - targetH;
+
+    ctx.drawImage(videoEl, targetX, targetY, targetW, targetH);
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
   }
@@ -1758,10 +1784,17 @@ async function removerFundoFotoSelecionada() {
         tCtx.globalCompositeOperation = 'destination-in';
         tCtx.drawImage(maskImg, 0, 0, W, H);
 
+        // Aplica o tamanho e posicionamento ao renderizar o canvas temporário
+        const scaleFactor = Estado.fundo.sujeitoScale / 100;
+        const targetW = W * scaleFactor;
+        const targetH = H * scaleFactor;
+        const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+        const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
+
         if (Estado.fundo.bordaSuavidade > 0) {
           rCtx.filter = `blur(${Estado.fundo.bordaSuavidade * 0.3}px)`;
         }
-        rCtx.drawImage(tempC, 0, 0);
+        rCtx.drawImage(tempC, targetX, targetY, targetW, targetH);
         rCtx.filter = 'none';
 
         URL.revokeObjectURL(maskURL);
@@ -1773,14 +1806,28 @@ async function removerFundoFotoSelecionada() {
       mostrarToast('⚠️ BiRefNet falhou — aplicando fundo sem remoção', 'warning');
       pintarFundoNoCanvas(rCtx, W, H);
       rCtx.globalAlpha = 0.9;
-      rCtx.drawImage(srcImg, 0, 0, W, H);
+      
+      const scaleFactor = Estado.fundo.sujeitoScale / 100;
+      const targetW = W * scaleFactor;
+      const targetH = H * scaleFactor;
+      const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+      const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
+      
+      rCtx.drawImage(srcImg, targetX, targetY, targetW, targetH);
       rCtx.globalAlpha = 1;
     }
   } else {
     // Sem BiRefNet: aplica fundo direto sem remoção
     pintarFundoNoCanvas(rCtx, W, H);
     rCtx.globalAlpha = 0.9;
-    rCtx.drawImage(srcImg, 0, 0, W, H);
+    
+    const scaleFactor = Estado.fundo.sujeitoScale / 100;
+    const targetW = W * scaleFactor;
+    const targetH = H * scaleFactor;
+    const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+    const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
+    
+    rCtx.drawImage(srcImg, targetX, targetY, targetW, targetH);
     rCtx.globalAlpha = 1;
     mostrarToast('⚠️ BiRefNet offline — fundo aplicado sem remoção de IA', 'warning');
   }
@@ -1793,6 +1840,11 @@ async function removerFundoFotoSelecionada() {
   const nomeFundo = `IMG_FUNDO_${agoraFundo.getFullYear()}${String(agoraFundo.getMonth()+1).padStart(2,'0')}${String(agoraFundo.getDate()).padStart(2,'0')}_${String(agoraFundo.getHours()).padStart(2,'0')}${String(agoraFundo.getMinutes()).padStart(2,'0')}${String(agoraFundo.getSeconds()).padStart(2,'0')}.jpg`;
   
   salvarFotoNoDiscoLocal(novoDataURL, nomeFundo);
+
+  // Espelha a foto processada na segunda tela se estiver ativa
+  if (window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.exibirFotoEstatica === 'function') {
+    window.windowTela2.exibirFotoEstatica(novoDataURL);
+  }
 
   sel.closest('.thumb-item').ondblclick = () => {
     abrirFotoAmpliada(novoDataURL, nomeFundo);
@@ -2285,4 +2337,35 @@ function baixarFotoSelecionada() {
   document.body.removeChild(link);
   
   mostrarToast('📥 Download iniciado no seu navegador!', 'success');
+}
+
+// ---- CONTROLE DE TAMANHO E POSIÇÃO DO SUJEITO ----
+function setSujeitoScale(v) {
+  Estado.fundo.sujeitoScale = parseInt(v);
+  const valSpan = document.getElementById('sujeitoScaleValue');
+  if (valSpan) valSpan.textContent = `${v}%`;
+}
+
+function setSujeitoX(v) {
+  Estado.fundo.sujeitoX = parseInt(v);
+  const valSpan = document.getElementById('sujeitoXValue');
+  if (valSpan) valSpan.textContent = `${v}%`;
+}
+
+function setSujeitoY(v) {
+  Estado.fundo.sujeitoY = parseInt(v);
+  const valSpan = document.getElementById('sujeitoYValue');
+  if (valSpan) valSpan.textContent = `${v}%`;
+}
+
+// ---- ABRIR SEGUNDA TELA (Slideshow/Projetor) ----
+window.windowTela2 = null;
+
+function abrirSegundaTela() {
+  if (window.windowTela2 && !window.windowTela2.closed) {
+    window.windowTela2.focus();
+    return;
+  }
+  window.windowTela2 = window.open('tela2.html', 'MEGAKEY_Tela2', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no');
+  mostrarToast('🖥️ Tela 2 (Slideshow) aberta! Arraste para o segundo monitor.', 'success');
 }

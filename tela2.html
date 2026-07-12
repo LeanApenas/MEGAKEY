@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>MEGAKEY — Tela 2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      background: #000;
+      overflow: hidden;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* Mantém a proporção do vídeo/imagem */
+    }
+  </style>
+</head>
+<body>
+  <canvas id="tela2Canvas"></canvas>
+  <script>
+    const canvas = document.getElementById('tela2Canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Função chamada pelo app.js para espelhar o frame em tempo real (60fps)
+    function desenharFrame(origemCanvas) {
+      if (canvas.width !== origemCanvas.width || canvas.height !== origemCanvas.height) {
+        canvas.width = origemCanvas.width;
+        canvas.height = origemCanvas.height;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(origemCanvas, 0, 0);
+    }
+
+    // Exibe uma foto processada estática
+    function exibirFotoEstatica(imageSrc) {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.naturalWidth || window.innerWidth;
+        canvas.height = img.naturalHeight || window.innerHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = imageSrc;
+    }
+  </script>
+</body>
+</html>

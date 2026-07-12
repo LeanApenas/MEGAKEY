@@ -143,6 +143,7 @@
           <button class="dd-item" onclick="togglePontosAF()">Pontos de Foco <span class="shortcut">Ctrl+F</span></button>
           <button class="dd-item" onclick="telaCheia()">Tela Cheia <span class="shortcut">F11</span></button>
           <button class="dd-item" onclick="organizarJanelas()">Organizar Janelas <span class="shortcut">Ctrl+A</span></button>
+          <button class="dd-item" onclick="abrirSegundaTela()" style="color:var(--accent-blue);">🖥️ Abrir Tela 2 (Slideshow/Projetor)</button>
         </div>
         <div class="dropdown-separator"></div>
         <div class="dropdown-group">
@@ -651,7 +652,7 @@
       <input type="file" id="inputFundoImg" accept="image/*" style="display:none" onchange="carregarImagemFundo(this)" />
 
       <!-- Controles de intensidade -->
-      <div class="bg-controls" id="bgControls" style="display:none">
+      <div class="bg-controls" id="bgControls" style="display:none; flex-direction:column; gap:8px;">
         <div class="setting-row">
           <label class="setting-label">Suavidade da borda</label>
           <div class="temp-control">
@@ -664,6 +665,31 @@
           <div class="temp-control">
             <input type="range" id="sliderOpacidadeFundo" min="0" max="100" value="100" oninput="setOpacidadeFundo(this.value)" class="ctrl-slider" />
             <span class="temp-value" id="opacidadeFundoValue">100%</span>
+          </div>
+        </div>
+
+        <div class="divider" style="margin: 6px 0;"></div>
+        <div class="setting-label" style="font-weight:600; font-size:11px; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">Ajuste do Sujeito no Fundo</div>
+
+        <div class="setting-row">
+          <label class="setting-label">Tamanho (Escala)</label>
+          <div class="temp-control">
+            <input type="range" id="sliderSujeitoScale" min="10" max="200" value="80" oninput="setSujeitoScale(this.value)" class="ctrl-slider" />
+            <span class="temp-value" id="sujeitoScaleValue">80%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label class="setting-label">Posição Horizontal (X)</label>
+          <div class="temp-control">
+            <input type="range" id="sliderSujeitoX" min="0" max="100" value="50" oninput="setSujeitoX(this.value)" class="ctrl-slider" />
+            <span class="temp-value" id="sujeitoXValue">50%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label class="setting-label">Posição Vertical (Y)</label>
+          <div class="temp-control">
+            <input type="range" id="sliderSujeitoY" min="0" max="100" value="100" oninput="setSujeitoY(this.value)" class="ctrl-slider" />
+            <span class="temp-value" id="sujeitoYValue">100%</span>
           </div>
         </div>
       </div>
