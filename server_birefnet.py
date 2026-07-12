@@ -210,7 +210,8 @@ def remove_bg():
             img_array = np.array(img)
             r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
 
-            verde_mask = (g > 100) & (g > r * 1.3) & (g > b * 1.3)
+            max_rb = np.maximum(r, b)
+            verde_mask = (g > 50) & ((g - max_rb) > 16)
             alpha = np.where(verde_mask, 0, 255).astype(np.uint8)
 
             img_rgba = img.convert("RGBA")

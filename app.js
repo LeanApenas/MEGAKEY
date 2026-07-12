@@ -1647,8 +1647,9 @@ function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
       const g = data[i + 1];
       const b = data[i + 2];
 
-      // Detecção de pixels verdes com tolerância para sombras
-      if (g > 60 && g > r * 1.12 && g > b * 1.12) {
+      // Detecção matemática avançada de verde (Chroma Key) resistente a sombras
+      const maxRedBlue = r > b ? r : b;
+      if (g > 50 && (g - maxRedBlue) > 16) {
         data[i + 3] = 0; // Transparente
       }
     }
@@ -1815,8 +1816,9 @@ async function removerFundoFotoSelecionada() {
       const g = data[i + 1];
       const b = data[i + 2];
 
-      // Detecção flexível de pixels verdes para estúdios
-      if (g > 60 && g > r * 1.12 && g > b * 1.12) {
+      // Detecção matemática avançada de verde (Chroma Key) resistente a sombras
+      const maxRedBlue = r > b ? r : b;
+      if (g > 50 && (g - maxRedBlue) > 16) {
         data[i + 3] = 0; // Transparente
       }
     }
