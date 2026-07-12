@@ -335,8 +335,9 @@ function disparar() {
 }
 
 function capturarFoto() {
+  const prefixo = localStorage.getItem('megakey_prefixo_nome') || 'IMG';
   const agora = new Date();
-  const nome = `IMG_${agora.getFullYear()}${String(agora.getMonth()+1).padStart(2,'0')}${String(agora.getDate()).padStart(2,'0')}_${String(agora.getHours()).padStart(2,'0')}${String(agora.getMinutes()).padStart(2,'0')}${String(agora.getSeconds()).padStart(2,'0')}.jpg`;
+  const nome = `${prefixo}_${agora.getFullYear()}${String(agora.getMonth()+1).padStart(2,'0')}${String(agora.getDate()).padStart(2,'0')}_${String(agora.getHours()).padStart(2,'0')}${String(agora.getMinutes()).padStart(2,'0')}${String(agora.getSeconds()).padStart(2,'0')}.jpg`;
 
   // Captura frame real da webcam se estiver disponível
   let frameDataURL = null;
@@ -1865,6 +1866,8 @@ function atualizarStatusFundo() {
 async function salvarFotoNoDiscoLocal(dataURL, nome) {
   if (!Estado.fundo.birefnetOnline) return;
 
+  const destinoDir = localStorage.getItem('megakey_caminho_salvar') || 'C:\\Users\\l\\Desktop\\MEGAKEY\\capturas';
+
   try {
     const response = await fetch(`${Estado.fundo.birefnetURL}/save-photo`, {
       method: 'POST',
@@ -1873,7 +1876,8 @@ async function salvarFotoNoDiscoLocal(dataURL, nome) {
       },
       body: JSON.stringify({
         image_b64: dataURL,
-        filename: nome
+        filename: nome,
+        destino_dir: destinoDir
       })
     });
     if (response.ok) {
@@ -2175,4 +2179,88 @@ async function excluirFundoDoServidor(filename) {
     console.error('Falha ao excluir fundo do servidor:', err);
     mostrarToast('❌ Erro ao remover fundo', 'error');
   }
+}
+
+// ---- CONFIGURAÇÃO DE PREFERÊNCIAS ----
+function abrirPreferencias() {
+  const prefCaminho = localStorage.getItem('megakey_caminho_salvar') || 'C:\\Users\\l\\Desktop\\MEGAKEY\\capturas';
+  const prefPrefixo = localStorage.getItem('megakey_prefixo_nome') || 'IMG';
+  
+  const inputCaminho = document.getElementById('prefCaminhoSalvar');
+  if (inputCaminho) inputCaminho.value = prefCaminho;
+  
+  const inputPrefixo = document.getElementById('prefNomePrefixo');
+  if (inputPrefixo) inputPrefixo.value = prefPrefixo;
+  
+  setPrefTab('geral');
+  abrirModal('modalPreferencias');
+}
+
+function setPrefTab(tabName) {
+  // Desmarca abas ativas
+  document.querySelectorAll('.pref-tab').forEach(t => t.classList.remove('active'));
+  // Oculta todos os conteúdos
+  document.querySelectorAll('.pref-content').forEach(c => c.classList.add('hidden'));
+  
+  // Ativa a aba clicada
+  const activeTab = Array.from(document.querySelectorAll('.pref-tab')).find(t => 
+    t.textContent.toLowerCase().includes(tabName === 'pasta' ? 'pasta' : tabName)
+  );
+  if (activeTab) activeTab.classList.add('active');
+  
+  // Mostra o conteúdo da aba
+  const idMap = {
+    'geral': 'prefGeral',
+    'pasta': 'prefPasta',
+    'nomeacao': 'prefNomeacao',
+    'interface': 'prefInterface'
+  };
+  const activeContent = document.getElementById(idMap[tabName]);
+  if (activeContent) activeContent.classList.remove('hidden');
+}
+
+async function testarPastaDestino() {
+  if (!Estado.fundo.birefnetOnline) {
+    mostrarToast('⚠️ Servidor local offline. Conecte-o primeiro.', 'warning');
+    return;
+  }
+  
+  const caminho = document.getElementById('prefCaminhoSalvar').value.trim();
+  mostrarToast('🔄 Verificando pasta no computador...', 'info');
+  
+  try {
+    const response = await fetch(`${Estado.fundo.birefnetURL}/verify-directory`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ directory: caminho })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.status === 'valido') {
+        mostrarToast('✅ Pasta de destino válida e acessível!', 'success');
+      } else {
+        mostrarToast(`❌ Erro de pasta: ${data.erro}`, 'error');
+      }
+    } else {
+      mostrarToast('❌ Servidor local retornou erro ao verificar', 'error');
+    }
+  } catch (err) {
+    mostrarToast('❌ Falha na conexão com o servidor local', 'error');
+  }
+}
+
+function salvarPreferencias() {
+  const inputCaminho = document.getElementById('prefCaminhoSalvar');
+  const inputPrefixo = document.getElementById('prefNomePrefixo');
+  
+  if (inputCaminho) {
+    localStorage.setItem('megakey_caminho_salvar', inputCaminho.value.trim());
+  }
+  if (inputPrefixo) {
+    localStorage.setItem('megakey_prefixo_nome', inputPrefixo.value.trim());
+  }
+  
+  fecharModal('modalPreferencias');
+  mostrarToast('Preferências salvas!', 'success');
 }

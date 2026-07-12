@@ -830,6 +830,49 @@
           </select>
         </div>
       </div>
+
+      <!-- TAB: Pasta de Destino -->
+      <div class="pref-content hidden" id="prefPasta">
+        <div class="form-group">
+          <label>Pasta de Salvamento no Computador</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="prefCaminhoSalvar" class="ctrl-input" value="C:\Users\l\Desktop\MEGAKEY\capturas" style="flex:1" />
+            <button class="btn-modal-ok" style="white-space:nowrap;padding:6px 14px" onclick="testarPastaDestino()">Verificar</button>
+          </div>
+          <span style="color:var(--text-muted);font-size:11px;margin-top:4px">
+            As fotos capturadas e as processadas pela IA serão gravadas diretamente neste diretório do seu PC.
+          </span>
+        </div>
+      </div>
+
+      <!-- TAB: Nomeação de Arquivos -->
+      <div class="pref-content hidden" id="prefNomeacao">
+        <div class="form-group">
+          <label>Prefixo dos Arquivos</label>
+          <input type="text" id="prefNomePrefixo" class="ctrl-input" value="IMG" style="width:120px" />
+          <span style="color:var(--text-muted);font-size:11px;margin-top:4px">
+            Exemplo: <code>IMG_20260712_125346.jpg</code>
+          </span>
+        </div>
+      </div>
+
+      <!-- TAB: Configurações de Interface -->
+      <div class="pref-content hidden" id="prefInterface">
+        <div class="form-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="prefMostrarBarraSuperior" checked />
+            <span class="toggle-switch"></span>
+            <span>Mostrar barra superior de menus</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="prefGradeVisualizacao" />
+            <span class="toggle-switch"></span>
+            <span>Mostrar linhas de grade por padrão</span>
+          </label>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-modal-cancel" onclick="fecharModal('modalPreferencias')">Cancelar</button>

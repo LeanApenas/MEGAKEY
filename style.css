@@ -1754,6 +1754,43 @@ body {
   background: rgba(239,68,68,0.1);
 }
 
+}
+
+/* ============================================
+   PREFERÊNCIAS TABS
+   ============================================ */
+.pref-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
+
+.pref-tab {
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.pref-tab:hover {
+  background: rgba(255,255,255,0.03);
+  color: var(--text-primary);
+}
+
+.pref-tab.active {
+  background: rgba(0,212,255,0.06);
+  border-color: rgba(0,212,255,0.25);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
 /* Responsividade básica */
 @media (max-width: 900px) {
   :root {

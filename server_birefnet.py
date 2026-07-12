@@ -272,10 +272,12 @@ def save_photo():
         filename = data["filename"]
         filename = os.path.basename(filename)
         
-        # Pasta de destino
-        destino_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "capturas")
+        # Pasta de destino (aceita valor enviado do cliente ou padrão)
+        destino_dir = data.get("destino_dir")
+        if not destino_dir:
+            destino_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "capturas")
+            
         os.makedirs(destino_dir, exist_ok=True)
-        
         filepath = os.path.join(destino_dir, filename)
         
         img_data = data["image_b64"]
@@ -357,6 +359,24 @@ def delete_background(filename):
             return jsonify({"erro": "Arquivo nao encontrado"}), 404
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/verify-directory", methods=["POST"])
+def verify_directory():
+    data = request.get_json()
+    if not data or "directory" not in data:
+        return jsonify({"erro": "Parametro 'directory' ausente"}), 400
+    
+    dir_path = data["directory"]
+    try:
+        os.makedirs(dir_path, exist_ok=True)
+        temp_file = os.path.join(dir_path, ".megakey_test")
+        with open(temp_file, "w") as f:
+            f.write("test")
+        os.remove(temp_file)
+        return jsonify({"status": "valido", "mensagem": "Pasta acessivel e gravavel!"})
+    except Exception as e:
+        return jsonify({"status": "invalido", "erro": str(e)}), 500
 
 
 # ============================================================
