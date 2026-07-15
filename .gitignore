@@ -19,3 +19,10 @@ IMG_*.png
 megakey_*.png
 *.mp4
 *.avi
+
+# Build and executables
+build/
+dist/
+*.exe
+*.spec
+

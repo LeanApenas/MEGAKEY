@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=8" />
 </head>
 <body>
 
@@ -212,10 +212,6 @@
     <button class="pb-btn" id="btnAssistente" onclick="abrirAssistenteFotobooth()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
       Assistente Fotobooth
-    </button>
-    <button class="pb-btn" id="btnLayoutImpressao" onclick="abrirLayoutImpressao()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      Layout de Impressão
     </button>
     <button class="pb-btn" id="btnConfigAvancadas" onclick="abrirConfigAvancadas()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
@@ -466,6 +462,12 @@
       <!-- Canvas do Live View (ativo quando conectado) -->
       <canvas id="liveviewCanvas" class="liveview-canvas" style="display:none;"></canvas>
 
+      <!-- Preview de Foto da Galeria (ativo quando selecionado na galeria e sem Live View) -->
+      <div id="previewFotoContainer" style="display:none; width:100%; height:100%; align-items:center; justify-content:center; background:#08080F; position:relative; overflow:hidden;">
+        <img id="imgPreviewFoto" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:6px; box-shadow:0 12px 48px rgba(0,0,0,0.85); border:1px solid rgba(255,255,255,0.05);" />
+        <div id="previewFotoNome" style="position:absolute; bottom:12px; left:12px; background:rgba(19,19,37,0.85); padding:6px 12px; border-radius:6px; font-size:11px; color:#00D4FF; font-family:'JetBrains Mono',monospace; border:1px solid rgba(0,212,255,0.2); backdrop-filter:blur(4px);"></div>
+      </div>
+
       <!-- Grade overlay -->
       <div class="grid-overlay" id="gridOverlay" style="display:none;">
         <div class="grid-line grid-h" style="top:33.33%"></div>
@@ -558,11 +560,11 @@
             <rect x="3" y="3" width="18" height="18" rx="2"/>
             <path d="M3 9h18M9 21V9"/>
           </svg>
-          <span>Fundo Virtual</span>
-          <span class="ai-badge" id="aiBadgeLabel">Chroma Key</span>
+          <span>Remover Fundo</span>
+          <span class="ai-badge" id="aiBadgeLabel" style="display:none;">BiRefNet IA</span>
         </div>
-        <label class="toggle-label">
-          <input type="checkbox" id="chkRemoverFundo" onchange="toggleRemoverFundo()" />
+        <label class="toggle-label" style="display:none;">
+          <input type="checkbox" id="chkRemoverFundo" onchange="toggleRemoverFundo()" checked />
           <span class="toggle-switch"></span>
         </label>
       </div>
@@ -571,7 +573,8 @@
       <div class="control-row" style="margin: 6px 0 10px 0; display: flex; align-items: center; gap: 8px;">
         <label class="setting-label" style="margin: 0; white-space: nowrap; font-size: 11px;">Método:</label>
         <select class="ctrl-select" id="selectMetodoRemocao" onchange="alterarMetodoRemocao(this.value)" style="flex:1; padding: 4px 8px; font-size: 11px;">
-          <option value="chromakey" selected>Chroma Key (Fundo Verde Físico)</option>
+          <option value="chromakey">Chroma Key (Fundo Verde Físico)</option>
+          <option value="rembg" selected>Inteligência Artificial (Rembg)</option>
           <option value="birefnet">Inteligência Artificial (BiRefNet)</option>
         </select>
       </div>
@@ -588,128 +591,23 @@
         </button>
       </div>
 
-      <!-- Seletor de Fundos -->
-      <div class="bg-grid" id="bgGrid">
-
-        <!-- Sem fundo (transparente) -->
-        <div class="bg-option bg-transparent-opt selected" id="bgOpt-none" onclick="selecionarFundo('none')" title="Sem fundo">
-          <div class="bg-opt-preview bg-preview-transparent">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </div>
-          <span>Nenhum</span>
-        </div>
-
-        <!-- COR: Preto -->
-        <div class="bg-option" id="bgOpt-black" onclick="selecionarFundo('color-black')" title="Fundo preto">
-          <div class="bg-opt-preview" style="background:#000;"></div>
-          <span>Preto</span>
-        </div>
-
-        <!-- COR: Branco -->
-        <div class="bg-option" id="bgOpt-white" onclick="selecionarFundo('color-white')" title="Fundo branco">
-          <div class="bg-opt-preview" style="background:#fff;"></div>
-          <span>Branco</span>
-        </div>
-
-        <!-- COR: Cinza -->
-        <div class="bg-option" id="bgOpt-gray" onclick="selecionarFundo('color-gray')" title="Fundo cinza">
-          <div class="bg-opt-preview" style="background:#555;"></div>
-          <span>Cinza</span>
-        </div>
-
-        <!-- GRADIENTE: Azul -->
-        <div class="bg-option" id="bgOpt-grad-blue" onclick="selecionarFundo('grad-blue')" title="Gradiente azul">
-          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);"></div>
-          <span>Oceano</span>
-        </div>
-
-        <!-- GRADIENTE: Roxo -->
-        <div class="bg-option" id="bgOpt-grad-purple" onclick="selecionarFundo('grad-purple')" title="Gradiente roxo">
-          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#1a0533,#4a1080,#7c3aed);"></div>
-          <span>Galáxia</span>
-        </div>
-
-        <!-- GRADIENTE: Dourado -->
-        <div class="bg-option" id="bgOpt-grad-gold" onclick="selecionarFundo('grad-gold')" title="Gradiente dourado">
-          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#1a0a00,#7c3d00,#f59e0b);"></div>
-          <span>Âmbar</span>
-        </div>
-
-        <!-- GRADIENTE: Verde -->
-        <div class="bg-option" id="bgOpt-grad-green" onclick="selecionarFundo('grad-green')" title="Gradiente verde">
-          <div class="bg-opt-preview" style="background:linear-gradient(135deg,#001a0a,#004d20,#10b981);"></div>
-          <span>Floresta</span>
-        </div>
-
-        <!-- COR: Verde Chroma -->
-        <div class="bg-option" id="bgOpt-chroma" onclick="selecionarFundo('color-chroma')" title="Verde Chroma Key">
-          <div class="bg-opt-preview" style="background:#00b140;"></div>
-          <span>Chroma</span>
-        </div>
-
-        <!-- UPLOAD -->
-        <div class="bg-option bg-upload-opt" id="bgOpt-upload" onclick="uploadFundo()" title="Carregar imagem">
-          <div class="bg-opt-preview bg-preview-upload" id="bgPreviewUpload">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          </div>
-          <span>Carregar</span>
-        </div>
-
+      <!-- Info sobre o modo -->
+      <div style="display:none; padding: 8px 10px; background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.12); border-radius: 8px; margin: 6px 0 12px 0;">
+        <p style="margin: 0; font-size: 11px; color: #9898be; line-height: 1.5;">
+          <span style="color:#00D4FF;">✂️</span> Remove o fundo da foto e salva somente a pessoa recortada em <strong style="color:#10B981;">PNG transparente</strong>.
+        </p>
       </div>
 
-      <!-- Input oculto para upload -->
+      <!-- Input oculto para upload (mantido para compatibilidade) -->
       <input type="file" id="inputFundoImg" accept="image/*" style="display:none" onchange="carregarImagemFundo(this)" />
 
-      <!-- Controles de intensidade -->
-      <div class="bg-controls" id="bgControls" style="display:none; flex-direction:column; gap:8px;">
-        <div class="setting-row">
-          <label class="setting-label">Suavidade da borda</label>
-          <div class="temp-control">
-            <input type="range" id="sliderBordaIA" min="0" max="20" value="6" oninput="setBordaIA(this.value)" class="ctrl-slider" />
-            <span class="temp-value" id="bordaIAValue">6px</span>
-          </div>
-        </div>
-        <div class="setting-row">
-          <label class="setting-label">Opacidade do fundo</label>
-          <div class="temp-control">
-            <input type="range" id="sliderOpacidadeFundo" min="0" max="100" value="100" oninput="setOpacidadeFundo(this.value)" class="ctrl-slider" />
-            <span class="temp-value" id="opacidadeFundoValue">100%</span>
-          </div>
-        </div>
-
-        <div class="divider" style="margin: 6px 0;"></div>
-        <div class="setting-label" style="font-weight:600; font-size:11px; color:var(--accent-blue); text-transform:uppercase; margin-bottom:4px;">Ajuste do Sujeito no Fundo</div>
-
-        <div class="setting-row">
-          <label class="setting-label">Tamanho (Escala)</label>
-          <div class="temp-control">
-            <input type="range" id="sliderSujeitoScale" min="10" max="200" value="80" oninput="setSujeitoScale(this.value)" class="ctrl-slider" />
-            <span class="temp-value" id="sujeitoScaleValue">80%</span>
-          </div>
-        </div>
-        <div class="setting-row">
-          <label class="setting-label">Posição Horizontal (X)</label>
-          <div class="temp-control">
-            <input type="range" id="sliderSujeitoX" min="0" max="100" value="50" oninput="setSujeitoX(this.value)" class="ctrl-slider" />
-            <span class="temp-value" id="sujeitoXValue">50%</span>
-          </div>
-        </div>
-        <div class="setting-row">
-          <label class="setting-label">Posição Vertical (Y)</label>
-          <div class="temp-control">
-            <input type="range" id="sliderSujeitoY" min="0" max="100" value="100" oninput="setSujeitoY(this.value)" class="ctrl-slider" />
-            <span class="temp-value" id="sujeitoYValue">100%</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Botão remoção de fundo em foto -->
+      <!-- Botão remover fundo -->
       <button class="btn-remover-fundo" id="btnRemoverFundoFoto" onclick="removerFundoFotoSelecionada()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <path d="M17 8l-5-5-5 5M12 3v12"/>
+          <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+          <path d="M15 9l-6 6M9 9l6 6"/>
         </svg>
-        Aplicar fundo na foto selecionada
+        Remover Fundo da Foto (PNG)
       </button>
 
       <!-- Botão para Baixar a foto no PC -->
@@ -726,12 +624,18 @@
 
       <!-- PASTA DE FUNDOS CUSTOMIZADOS (DRAG & DROP) -->
       <div class="project-bg-section">
-        <div class="bg-panel-title" style="margin-bottom: 8px;">
+        <div class="bg-panel-title" style="margin-bottom: 4px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2"/>
             <path d="M21 12H3M12 3v18"/>
           </svg>
           <span>Fundos do Projeto</span>
+        </div>
+        <div class="control-row" style="margin: 0 0 8px 0; display: flex; align-items: center; gap: 8px;">
+          <label class="toggle-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="chkVincularOrdem" onchange="toggleVincularOrdem()" checked />
+            <span style="font-size: 11px; color: #9898be;">Vincular por Ordem (Foto 1 x Fundo 1...)</span>
+          </label>
         </div>
 
         <!-- Zona de Arraste e Solte -->
@@ -1011,6 +915,6 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

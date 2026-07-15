@@ -41,7 +41,8 @@ const Estado = {
     contador: 0
   },
   fundo: {
-    ativo: false,
+    ativo: true,
+    vincularOrdem: true,
     tipo: 'none',            // 'none' | 'color-*' | 'grad-*' | 'color-chroma' | 'upload'
     corSolida: '#000000',
     imagemUpload: null,      // HTMLImageElement
@@ -56,7 +57,7 @@ const Estado = {
     sujeitoScale: 80,
     sujeitoX: 50,
     sujeitoY: 100,
-    metodo: 'chromakey'      // 'chromakey' | 'birefnet'
+    metodo: 'rembg'      // 'chromakey' | 'rembg' | 'birefnet'
   }
 };
 
@@ -383,6 +384,7 @@ function adicionarMiniatura(frameDataURL = null, nome = '') {
   const thumb = document.createElement('div');
   thumb.className = 'thumb-item';
   thumb.title = nome;
+  thumb.dataset.filename = nome;
   thumb.onclick = () => selecionarMiniatura(thumb);
 
   const img = document.createElement('img');
@@ -390,6 +392,7 @@ function adicionarMiniatura(frameDataURL = null, nome = '') {
   if (frameDataURL) {
     // Frame real da webcam
     img.src = frameDataURL;
+    img.dataset.originalSrc = frameDataURL;
 
     // Clique duplo abre a foto ampliada
     thumb.ondblclick = () => abrirFotoAmpliada(frameDataURL, nome);
@@ -469,10 +472,36 @@ function selecionarMiniatura(thumb) {
   document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('selected'));
   thumb.classList.add('selected');
 
-  // Espelha a imagem selecionada na segunda tela se estiver ativa
   const img = thumb.querySelector('img');
-  if (img && window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.exibirFotoEstatica === 'function') {
-    window.windowTela2.exibirFotoEstatica(img.src);
+  if (img) {
+    // Se Vincular por Ordem estiver ativado, seleciona o fundo correspondente
+    if (Estado.fundo.vincularOrdem) {
+      const thumbs = Array.from(document.querySelectorAll('.thumb-item'));
+      const index = thumbs.indexOf(thumb);
+      selecionarFundoPorIndex(index);
+    }
+
+    // Se o Live View NÃO estiver ativo, exibe a foto selecionada no preview central grande
+    if (!Estado.liveViewAtivo) {
+      const containerDesconectado = document.getElementById('liveviewDisconnected');
+      const canvasLive = document.getElementById('liveviewCanvas');
+      const containerPreview = document.getElementById('previewFotoContainer');
+      const txtNome = document.getElementById('previewFotoNome');
+
+      if (containerDesconectado) containerDesconectado.style.display = 'none';
+      if (canvasLive) canvasLive.style.display = 'none';
+      if (containerPreview) containerPreview.style.display = 'flex';
+      
+      const nomeOriginal = thumb.dataset.filename || 'Foto Selecionada';
+      if (txtNome) txtNome.textContent = `Visualizando: ${nomeOriginal}`;
+      
+      atualizarPreviewComposto();
+    } else {
+      // Espelha a imagem selecionada na segunda tela se estiver ativa
+      if (window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.exibirFotoEstatica === 'function') {
+        window.windowTela2.exibirFotoEstatica(img.src);
+      }
+    }
   }
 }
 
@@ -528,6 +557,8 @@ function iniciarLiveViewWebcam() {
 
   const container = document.getElementById('liveviewContainer');
   const canvas = document.getElementById('liveviewCanvas');
+  const containerPreview = document.getElementById('previewFotoContainer');
+  if (containerPreview) containerPreview.style.display = 'none';
 
   // Ajusta canvas ao tamanho do container
   const resize = () => {
@@ -622,9 +653,22 @@ function pararLiveView() {
     Estado._liveViewFrame = null;
   }
   const canvas = document.getElementById('liveviewCanvas');
-  canvas.style.display = 'none';
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (canvas) {
+    canvas.style.display = 'none';
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Se tiver alguma foto selecionada na galeria, volta para o preview dela
+  const selecionado = document.querySelector('.thumb-item.selected');
+  if (selecionado) {
+    selecionarMiniatura(selecionado);
+  } else {
+    const containerDesconectado = document.getElementById('liveviewDisconnected');
+    if (containerDesconectado) containerDesconectado.style.display = 'flex';
+    const containerPreview = document.getElementById('previewFotoContainer');
+    if (containerPreview) containerPreview.style.display = 'none';
+  }
 }
 
 // ============================================
@@ -1422,13 +1466,29 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 
 function inicializarPainelFundo() {
-  // Carrega configuração salva do localStorage
-  const savedURL = localStorage.getItem('megakey_birefnet_url');
-  if (savedURL) {
-    Estado.fundo.birefnetURL = savedURL;
-    const input = document.getElementById('inputBiRefNetURL');
-    if (input) input.value = savedURL;
+  // Ajusta automaticamente a URL da API caso esteja rodando via servidor HTTP local
+  if (window.location.protocol.startsWith('http')) {
+    Estado.fundo.birefnetURL = window.location.origin;
+  } else {
+    // Carrega configuração salva do localStorage como fallback
+    const savedURL = localStorage.getItem('megakey_birefnet_url');
+    if (savedURL) {
+      Estado.fundo.birefnetURL = savedURL;
+    }
   }
+
+  const input = document.getElementById('inputBiRefNetURL');
+  if (input) input.value = Estado.fundo.birefnetURL;
+
+  // Carrega configuração de vinculo por ordem
+  const savedVincular = localStorage.getItem('megakey_vincular_ordem');
+  if (savedVincular !== null) {
+    Estado.fundo.vincularOrdem = savedVincular === 'true';
+  } else {
+    Estado.fundo.vincularOrdem = true;
+  }
+  const chkVincular = document.getElementById('chkVincularOrdem');
+  if (chkVincular) chkVincular.checked = Estado.fundo.vincularOrdem;
 
   // Testa a conexão silenciosamente na inicialização
   verificarConexaoBiRefNetSilencioso();
@@ -1456,7 +1516,9 @@ async function verificarConexaoBiRefNetSilencioso() {
 // ---- TOGGLE DO PAINEL ----
 function toggleRemoverFundo() {
   const chk = document.getElementById('chkRemoverFundo');
-  Estado.fundo.ativo = chk.checked;
+  if (chk) {
+    Estado.fundo.ativo = chk.checked;
+  }
   const bgControls = document.getElementById('bgControls');
   const statusBar = document.getElementById('bgStatusBar');
 
@@ -1473,12 +1535,125 @@ function toggleRemoverFundo() {
       if (statusBar) statusBar.style.display = 'flex';
       atualizarStatusFundo();
     }
-    bgControls.style.display = 'flex';
+    if (bgControls) bgControls.style.display = 'flex';
   } else {
-    bgControls.style.display = 'none';
+    if (bgControls) bgControls.style.display = 'none';
     if (statusBar) statusBar.style.display = 'none';
     Estado.fundo.maskCanvas = null;
     mostrarToast('Fundo Virtual desativado', 'info');
+  }
+}
+
+// ---- VINCULAR POR ORDEM ----
+function toggleVincularOrdem() {
+  const chk = document.getElementById('chkVincularOrdem');
+  if (chk) {
+    Estado.fundo.vincularOrdem = chk.checked;
+    localStorage.setItem('megakey_vincular_ordem', chk.checked ? 'true' : 'false');
+    
+    // Se ativado, sincroniza imediatamente a foto atual
+    if (chk.checked) {
+      const selThumb = document.querySelector('.thumb-item.selected');
+      if (selThumb) {
+        const thumbs = Array.from(document.querySelectorAll('.thumb-item'));
+        const index = thumbs.indexOf(selThumb);
+        selecionarFundoPorIndex(index);
+      }
+    }
+  }
+}
+
+function selecionarFundoPorIndex(index) {
+  const bgCards = document.querySelectorAll('.custom-bg-card');
+  if (index >= 0 && index < bgCards.length) {
+    const card = bgCards[index];
+    document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('.custom-bg-card').forEach(el => el.classList.remove('selected'));
+    
+    card.classList.add('selected');
+    
+    const imgEl = card.querySelector('img');
+    if (imgEl) {
+      const url = imgEl.src;
+      const img = new Image();
+      img.onload = () => {
+        Estado.fundo.imagemUpload = img;
+        Estado.fundo.imagemDataURL = url;
+        Estado.fundo.tipo = 'upload';
+        atualizarPreviewComposto();
+      };
+      img.src = url;
+    }
+  }
+}
+
+async function atualizarPreviewComposto() {
+  if (Estado.liveViewAtivo) return;
+  
+  const sel = document.querySelector('.thumb-item.selected img');
+  const imgPreview = document.getElementById('imgPreviewFoto');
+  const containerPreview = document.getElementById('previewFotoContainer');
+  
+  if (!sel || !imgPreview) return;
+  
+  const isTransparent = sel.src && sel.src.includes('image/png');
+  
+  if (isTransparent && Estado.fundo.tipo !== 'none') {
+    try {
+      const imgForeground = new Image();
+      imgForeground.src = sel.src;
+      await new Promise(r => { imgForeground.onload = r; if (imgForeground.complete) r(); });
+      
+      const W = imgForeground.naturalWidth || 640;
+      const H = imgForeground.naturalHeight || 480;
+      
+      const compCanvas = document.createElement('canvas');
+      compCanvas.width = W;
+      compCanvas.height = H;
+      const compCtx = compCanvas.getContext('2d');
+      
+      compCtx.imageSmoothingEnabled = true;
+      compCtx.imageSmoothingQuality = 'high';
+      
+      // 1. Desenha o fundo virtual
+      pintarFundoNoCanvas(compCtx, W, H);
+      
+      // 2. Desenha a pessoa recortada aplicando a escala e posicionamento
+      const scaleFactor = Estado.fundo.sujeitoScale / 100;
+      const targetW = W * scaleFactor;
+      const targetH = H * scaleFactor;
+      const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+      const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
+      
+      compCtx.drawImage(imgForeground, targetX, targetY, targetW, targetH);
+      
+      const compositeDataURL = compCanvas.toDataURL('image/jpeg', 0.95);
+      imgPreview.src = compositeDataURL;
+      if (containerPreview) {
+        containerPreview.style.background = 'none';
+      }
+      
+      // Espelha a imagem composta na segunda tela se estiver ativa
+      if (window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.exibirFotoEstatica === 'function') {
+        window.windowTela2.exibirFotoEstatica(compositeDataURL);
+      }
+    } catch (err) {
+      console.error('Erro ao gerar preview composto:', err);
+      imgPreview.src = sel.src;
+    }
+  } else {
+    imgPreview.src = sel.src;
+    if (containerPreview) {
+      if (isTransparent) {
+        containerPreview.style.background = 'repeating-conic-gradient(#1a1a2e 0% 25%, #12121f 0% 50%) 50% / 20px 20px';
+      } else {
+        containerPreview.style.background = '#0e0e18';
+      }
+    }
+    // Espelha a imagem simples na segunda tela se estiver ativa
+    if (window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.exibirFotoEstatica === 'function') {
+      window.windowTela2.exibirFotoEstatica(sel.src);
+    }
   }
 }
 
@@ -1515,6 +1690,7 @@ function selecionarFundo(tipo) {
   };
 
   if (tipo !== 'none') mostrarToast(`Fundo: ${nomes[tipo] || tipo}`, 'info');
+  atualizarPreviewComposto();
 }
 
 // ---- UPLOAD DE FUNDO PERSONALIZADO ----
@@ -1776,22 +1952,9 @@ async function requisitarMascaraBiRefNet(videoEl, w, h) {
 }
 
 // ---- APLICAR FUNDO EM FOTO CAPTURADA ----
-async function removerFundoFotoSelecionada() {
-  const sel = document.querySelector('.thumb-item.selected img');
-  if (!sel) {
-    mostrarToast('Selecione uma foto na galeria primeiro', 'warning');
-    return;
-  }
-
-  if (Estado.fundo.tipo === 'none') {
-    mostrarToast('Selecione um fundo antes de aplicar', 'warning');
-    return;
-  }
-
-  mostrarToast('🤖 Processando com BiRefNet...', 'info');
-
+async function processarRecorteIA(src) {
   const srcImg = new Image();
-  srcImg.src = sel.src;
+  srcImg.src = src;
   await new Promise(r => { srcImg.onload = r; if (srcImg.complete) r(); });
 
   const W = srcImg.naturalWidth  || 640;
@@ -1803,10 +1966,6 @@ async function removerFundoFotoSelecionada() {
   const rCtx = resultCanvas.getContext('2d');
 
   if (Estado.fundo.metodo === 'chromakey') {
-    // Pinta fundo
-    pintarFundoNoCanvas(rCtx, W, H);
-
-    // Chroma key de alta resolução da foto selecionada
     const tempC = document.createElement('canvas');
     tempC.width = W; tempC.height = H;
     const tCtx = tempC.getContext('2d');
@@ -1820,132 +1979,189 @@ async function removerFundoFotoSelecionada() {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
-
-      // Detecção matemática avançada de verde (Chroma Key) resistente a sombras
       const maxRedBlue = r > b ? r : b;
       if (g > 50 && (g - maxRedBlue) > 16) {
-        data[i + 3] = 0; // Transparente
-      } else {
-        // Spill Suppressor: reduz as bordas verdes e reflexos na pele/roupas
-        if (g > maxRedBlue) {
-          data[i + 1] = maxRedBlue; // Reduz canal G
-        }
+        data[i + 3] = 0;
+      } else if (g > maxRedBlue) {
+        data[i + 1] = maxRedBlue;
       }
     }
     tCtx.putImageData(frame, 0, 0);
-
-    // Pinta sujeito com escala e posição
-    const scaleFactor = Estado.fundo.sujeitoScale / 100;
-    const targetW = W * scaleFactor;
-    const targetH = H * scaleFactor;
-    const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
-    const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
-
-    rCtx.drawImage(tempC, targetX, targetY, targetW, targetH);
-    mostrarToast('✅ Chroma Key aplicado com sucesso!', 'success');
+    rCtx.drawImage(tempC, 0, 0);
+    return resultCanvas.toDataURL('image/png');
   } else if (Estado.fundo.birefnetOnline) {
-    try {
-      // Envia foto ao BiRefNet local
-      const snap = document.createElement('canvas');
-      snap.width = W; snap.height = H;
-      snap.getContext('2d').drawImage(srcImg, 0, 0);
+    const snap = document.createElement('canvas');
+    snap.width = W; snap.height = H;
+    snap.getContext('2d').drawImage(srcImg, 0, 0);
 
-      const blob = await new Promise(r => snap.toBlob(r, 'image/jpeg', 0.95));
-      const fd = new FormData();
-      fd.append('image', blob, 'photo.jpg');
+    const blob = await new Promise(r => snap.toBlob(r, 'image/jpeg', 0.95));
+    const fd = new FormData();
+    fd.append('image', blob, 'photo.jpg');
 
-      const resp = await fetch(`${Estado.fundo.birefnetURL}/remove-bg`, {
-        method: 'POST',
-        body: fd,
-        signal: AbortSignal.timeout(10000)
+    const resp = await fetch(`${Estado.fundo.birefnetURL}/remove-bg?model=${Estado.fundo.metodo}`, {
+      method: 'POST',
+      body: fd,
+      signal: AbortSignal.timeout(12000)
+    });
+
+    if (resp.ok) {
+      const maskBlob = await resp.blob();
+      const maskURL = URL.createObjectURL(maskBlob);
+      const maskImg = await new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = maskURL;
       });
 
-      if (resp.ok) {
-        const maskBlob = await resp.blob();
-        const maskURL = URL.createObjectURL(maskBlob);
-        const maskImg = await new Promise((res, rej) => {
-          const img = new Image();
-          img.onload = () => res(img);
-          img.onerror = rej;
-          img.src = maskURL;
-        });
-
-        // Pinta fundo
-        pintarFundoNoCanvas(rCtx, W, H);
-
-        // Pinta sujeito com máscara
-        const tempC = document.createElement('canvas');
-        tempC.width = W; tempC.height = H;
-        const tCtx = tempC.getContext('2d');
-        tCtx.drawImage(srcImg, 0, 0);
-        tCtx.globalCompositeOperation = 'destination-in';
-        tCtx.drawImage(maskImg, 0, 0, W, H);
-
-        // Aplica o tamanho e posicionamento ao renderizar o canvas temporário
-        const scaleFactor = Estado.fundo.sujeitoScale / 100;
-        const targetW = W * scaleFactor;
-        const targetH = H * scaleFactor;
-        const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
-        const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
-
-        if (Estado.fundo.bordaSuavidade > 0) {
-          rCtx.filter = `blur(${Estado.fundo.bordaSuavidade * 0.3}px)`;
-        }
-        rCtx.drawImage(tempC, targetX, targetY, targetW, targetH);
-        rCtx.filter = 'none';
-
-        URL.revokeObjectURL(maskURL);
-        mostrarToast('✅ Fundo removido com BiRefNet!', 'success');
-      } else {
-        throw new Error('BiRefNet retornou erro');
-      }
-    } catch (err) {
-      mostrarToast('⚠️ BiRefNet falhou — aplicando fundo sem remoção', 'warning');
-      pintarFundoNoCanvas(rCtx, W, H);
-      rCtx.globalAlpha = 0.9;
-      
-      const scaleFactor = Estado.fundo.sujeitoScale / 100;
-      const targetW = W * scaleFactor;
-      const targetH = H * scaleFactor;
-      const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
-      const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
-      
-      rCtx.drawImage(srcImg, targetX, targetY, targetW, targetH);
-      rCtx.globalAlpha = 1;
+      rCtx.drawImage(maskImg, 0, 0, W, H);
+      URL.revokeObjectURL(maskURL);
+      return resultCanvas.toDataURL('image/png');
+    } else {
+      throw new Error('Servidor IA retornou erro');
     }
   } else {
-    // Sem BiRefNet: aplica fundo direto sem remoção
-    pintarFundoNoCanvas(rCtx, W, H);
-    rCtx.globalAlpha = 0.9;
-    
-    const scaleFactor = Estado.fundo.sujeitoScale / 100;
-    const targetW = W * scaleFactor;
-    const targetH = H * scaleFactor;
-    const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
-    const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
-    
-    rCtx.drawImage(srcImg, targetX, targetY, targetW, targetH);
-    rCtx.globalAlpha = 1;
-    mostrarToast('⚠️ BiRefNet offline — fundo aplicado sem remoção de IA', 'warning');
+    throw new Error('Servidor IA offline');
   }
+}
 
-  // Atualiza a miniatura com resultado
-  const novoDataURL = resultCanvas.toDataURL('image/jpeg', 0.95);
-  sel.src = novoDataURL;
+async function comporRecorteComFundo(cutoutDataURL, bgUrl) {
+  const imgForeground = new Image();
+  imgForeground.src = cutoutDataURL;
+  await new Promise(r => { imgForeground.onload = r; if (imgForeground.complete) r(); });
 
-  const agoraFundo = new Date();
-  const nomeFundo = `IMG_FUNDO_${agoraFundo.getFullYear()}${String(agoraFundo.getMonth()+1).padStart(2,'0')}${String(agoraFundo.getDate()).padStart(2,'0')}_${String(agoraFundo.getHours()).padStart(2,'0')}${String(agoraFundo.getMinutes()).padStart(2,'0')}${String(agoraFundo.getSeconds()).padStart(2,'0')}.jpg`;
-  
-  salvarFotoNoDiscoLocal(novoDataURL, nomeFundo);
+  const W = imgForeground.naturalWidth || 640;
+  const H = imgForeground.naturalHeight || 480;
 
-  // Espelha a foto processada na segunda tela se estiver ativa
-  if (window.windowTela2 && !window.windowTela2.closed && typeof window.windowTela2.exibirFotoEstatica === 'function') {
-    window.windowTela2.exibirFotoEstatica(novoDataURL);
-  }
+  const compCanvas = document.createElement('canvas');
+  compCanvas.width = W;
+  compCanvas.height = H;
+  const compCtx = compCanvas.getContext('2d');
 
-  sel.closest('.thumb-item').ondblclick = () => {
-    abrirFotoAmpliada(novoDataURL, nomeFundo);
+  compCtx.imageSmoothingEnabled = true;
+  compCtx.imageSmoothingQuality = 'high';
+
+  const bgImg = new Image();
+  bgImg.src = bgUrl;
+  await new Promise(r => { bgImg.onload = r; if (bgImg.complete) r(); });
+
+  compCtx.save();
+  compCtx.globalAlpha = Estado.fundo.opacidade;
+  const scale = Math.max(W / bgImg.width, H / bgImg.height);
+  const dw = bgImg.width * scale;
+  const dh = bgImg.height * scale;
+  const dx = (W - dw) / 2;
+  const dy = (H - dh) / 2;
+  compCtx.drawImage(bgImg, dx, dy, dw, dh);
+  compCtx.restore();
+
+  const scaleFactor = Estado.fundo.sujeitoScale / 100;
+  const targetW = W * scaleFactor;
+  const targetH = H * scaleFactor;
+  const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+  const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
+
+  compCtx.drawImage(imgForeground, targetX, targetY, targetW, targetH);
+
+  return compCanvas.toDataURL('image/jpeg', 0.95);
+}
+
+async function salvarFotoNaPastaProntas(dataURL, nome) {
+  const serverURL = Estado.fundo.birefnetURL || window.location.origin;
+  const payload = {
+    image_b64: dataURL,
+    filename: nome,
+    destino_dir: 'C:\\Users\\l\\Desktop\\MEGAKEY\\prontas'
   };
+
+  const response = await fetch(`${serverURL}/save-photo`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    let errorMsg = response.status;
+    try {
+      const errText = await response.text();
+      const errJson = JSON.parse(errText);
+      if (errJson && errJson.erro) {
+        errorMsg = errJson.erro;
+      }
+    } catch (e) {}
+    throw new Error(errorMsg);
+  }
+}
+
+async function removerFundoFotoSelecionada() {
+  const thumbs = Array.from(document.querySelectorAll('.thumb-item'));
+  if (thumbs.length === 0) {
+    mostrarToast('Nenhuma foto na galeria para processar', 'warning');
+    return;
+  }
+
+  mostrarToast(`🤖 Iniciando remoção de fundo de ${thumbs.length} foto(s)...`, 'info');
+
+  for (let index = 0; index < thumbs.length; index++) {
+    const thumb = thumbs[index];
+    const img = thumb.querySelector('img');
+    if (!img) continue;
+
+    const originalSrc = img.dataset.originalSrc || img.src;
+    if (!originalSrc || originalSrc.startsWith('data:image/svg') || originalSrc.length < 100) {
+      continue;
+    }
+
+    mostrarToast(`📸 Removendo fundo da foto ${index + 1}/${thumbs.length}...`, 'info');
+
+    try {
+      // 1. Remove o fundo
+      const cutoutDataURL = await processarRecorteIA(originalSrc);
+      
+      if (!img.dataset.originalSrc) {
+        img.dataset.originalSrc = originalSrc;
+      }
+      img.src = cutoutDataURL;
+
+      // 2. Associa com o fundo da mesma posição
+      const bgCards = document.querySelectorAll('.custom-bg-card');
+      let finalDataURL = cutoutDataURL;
+      let hasBackground = false;
+
+      if (index < bgCards.length) {
+        const card = bgCards[index];
+        const bgImgEl = card.querySelector('img');
+        if (bgImgEl) {
+          const bgUrl = bgImgEl.src;
+          finalDataURL = await comporRecorteComFundo(cutoutDataURL, bgUrl);
+          hasBackground = true;
+        }
+      }
+
+      // 3. Salva na pasta prontas
+      const prefixo = localStorage.getItem('megakey_prefixo_nome') || 'IMG';
+      const agora = new Date();
+      const ext = hasBackground ? 'jpg' : 'png';
+      const nomeFinal = `${prefixo}_EDITADA_FOTO${index + 1}_${agora.getFullYear()}${String(agora.getMonth()+1).padStart(2,'0')}${String(agora.getDate()).padStart(2,'0')}_${String(agora.getHours()).padStart(2,'0')}${String(agora.getMinutes()).padStart(2,'0')}${String(agora.getSeconds()).padStart(2,'0')}.${ext}`;
+      
+      await salvarFotoNaPastaProntas(finalDataURL, nomeFinal);
+      
+      // Cria o evento de clique duplo para abrir a foto ampliada
+      thumb.ondblclick = () => {
+        abrirFotoAmpliada(cutoutDataURL, nomeFinal);
+      };
+      
+    } catch (err) {
+      console.error(`Erro ao processar foto ${index + 1}:`, err);
+      mostrarToast(`❌ Erro na foto ${index + 1}: ${err.message || err}`, 'error');
+    }
+  }
+
+  // Atualiza preview da foto que estiver selecionada atualmente
+  atualizarPreviewComposto();
+  mostrarToast('🎉 Processamento em lote concluído!', 'success');
 }
 
 // ---- CONFIGURAÇÃO BIREFNET ----
@@ -2013,29 +2229,47 @@ function atualizarStatusFundo() {
 }
 
 async function salvarFotoNoDiscoLocal(dataURL, nome) {
-  if (!Estado.fundo.birefnetOnline) return;
+  // Se houver caminho customizado salvo nas preferências, envia ele. Caso contrário, deixa vazio para usar a pasta relativa ao executável.
+  const destinoDir = localStorage.getItem('megakey_caminho_salvar') || '';
+  const serverURL = Estado.fundo.birefnetURL || window.location.origin;
 
-  const destinoDir = localStorage.getItem('megakey_caminho_salvar') || 'C:\\Users\\l\\Desktop\\MEGAKEY\\capturas';
+  console.log('Salvando foto:', nome, 'caminho customizado:', destinoDir, 'via:', serverURL);
+
+  const payload = {
+    image_b64: dataURL,
+    filename: nome
+  };
+  if (destinoDir) {
+    payload.destino_dir = destinoDir;
+  }
 
   try {
-    const response = await fetch(`${Estado.fundo.birefnetURL}/save-photo`, {
+    const response = await fetch(`${serverURL}/save-photo`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        image_b64: dataURL,
-        filename: nome,
-        destino_dir: destinoDir
-      })
+      body: JSON.stringify(payload)
     });
     if (response.ok) {
       const res = await response.json();
       console.log('Foto salva localmente em:', res.caminho);
-      mostrarToast(`💾 Salva no disco: ${nome}`, 'success');
+      mostrarToast(`💾 Salva em: capturas/${nome}`, 'success');
+    } else {
+      let errorMsg = response.status;
+      try {
+        const errText = await response.text();
+        const errJson = JSON.parse(errText);
+        if (errJson && errJson.erro) {
+          errorMsg = errJson.erro;
+        }
+      } catch (e) {}
+      console.error('Erro servidor ao salvar:', response.status, errorMsg);
+      mostrarToast(`❌ Erro ao salvar: ${errorMsg}`, 'error');
     }
   } catch (err) {
     console.error('Falha ao salvar foto localmente:', err);
+    mostrarToast(`❌ Falha ao conectar servidor para salvar`, 'error');
   }
 }
 
@@ -2084,6 +2318,7 @@ async function carregarFundosLocaisDoServidor() {
 
 function adicionarFundosServidorNaGrid(backgrounds) {
   const grid = document.getElementById('bgGrid');
+  if (!grid) return;
   
   // Remove itens dinâmicos antigos se houver
   document.querySelectorAll('.bg-option-dynamic').forEach(el => el.remove());
@@ -2256,6 +2491,7 @@ function renderizarCartoesFundoProjeto(backgrounds) {
         Estado.fundo.imagemDataURL = url;
         Estado.fundo.tipo = 'upload'; // Trata como imagem carregada
         mostrarToast(`Fundo ativo: ${filename}`, 'info');
+        atualizarPreviewComposto();
       };
       img.src = url;
     };
@@ -2414,26 +2650,106 @@ function salvarPreferencias() {
   mostrarToast('Preferências salvas!', 'success');
 }
 
-function baixarFotoSelecionada() {
+async function baixarFotoSelecionada() {
   const sel = document.querySelector('.thumb-item.selected img');
   if (!sel) {
     mostrarToast('Selecione uma foto na galeria primeiro', 'warning');
     return;
   }
   
-  const link = document.createElement('a');
-  link.href = sel.src;
-  
+  const serverURL = Estado.fundo.birefnetURL || window.location.origin;
   const prefixo = localStorage.getItem('megakey_prefixo_nome') || 'IMG';
   const agora = new Date();
-  const nome = `${prefixo}_EDITADA_${agora.getTime()}.jpg`;
-  link.download = nome;
   
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  let finalDataURL = sel.src;
+  let ext = 'jpg';
+  if (sel.src && sel.src.includes('image/png')) {
+    ext = 'png';
+  }
   
-  mostrarToast('📥 Download iniciado no seu navegador!', 'success');
+  const isTransparent = sel.src && sel.src.includes('image/png');
+  
+  // Se a foto for PNG transparente e houver um fundo selecionado, faz a composição antes de salvar
+  if (isTransparent && Estado.fundo.tipo !== 'none') {
+    mostrarToast('🎨 Aplicando fundo virtual...', 'info');
+    try {
+      const imgForeground = new Image();
+      imgForeground.src = sel.src;
+      await new Promise(r => { imgForeground.onload = r; if (imgForeground.complete) r(); });
+      
+      const W = imgForeground.naturalWidth || 640;
+      const H = imgForeground.naturalHeight || 480;
+      
+      const compCanvas = document.createElement('canvas');
+      compCanvas.width = W;
+      compCanvas.height = H;
+      const compCtx = compCanvas.getContext('2d');
+      
+      // Habilita suavização de imagem em alta qualidade
+      compCtx.imageSmoothingEnabled = true;
+      compCtx.imageSmoothingQuality = 'high';
+      
+      // 1. Desenha o fundo virtual
+      pintarFundoNoCanvas(compCtx, W, H);
+      
+      // 2. Desenha a pessoa recortada aplicando a escala e posicionamento configurados
+      const scaleFactor = Estado.fundo.sujeitoScale / 100;
+      const targetW = W * scaleFactor;
+      const targetH = H * scaleFactor;
+      const targetX = (W * (Estado.fundo.sujeitoX / 100)) - (targetW / 2);
+      const targetY = (H * (Estado.fundo.sujeitoY / 100)) - targetH;
+      
+      compCtx.drawImage(imgForeground, targetX, targetY, targetW, targetH);
+      
+      // Como o fundo foi aplicado, a imagem final não precisa mais ser transparente (salva em JPEG de alta qualidade)
+      finalDataURL = compCanvas.toDataURL('image/jpeg', 0.95);
+      ext = 'jpg';
+    } catch (err) {
+      console.error('Erro ao compor fundo na foto:', err);
+      mostrarToast('⚠️ Erro ao aplicar fundo, salvando PNG transparente', 'warning');
+    }
+  }
+  
+  const nome = `${prefixo}_EDITADA_${agora.getFullYear()}${String(agora.getMonth()+1).padStart(2,'0')}${String(agora.getDate()).padStart(2,'0')}_${String(agora.getHours()).padStart(2,'0')}${String(agora.getMinutes()).padStart(2,'0')}${String(agora.getSeconds()).padStart(2,'0')}.${ext}`;
+  const destinoDir = 'C:\\Users\\l\\Desktop\\MEGAKEY\\prontas';
+  
+  const payload = {
+    image_b64: finalDataURL,
+    filename: nome,
+    destino_dir: destinoDir
+  };
+  
+  mostrarToast('💾 Salvando foto na pasta prontas...', 'info');
+  
+  try {
+    const response = await fetch(`${serverURL}/save-photo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (response.ok) {
+      const res = await response.json();
+      console.log('Foto salva localmente em:', res.caminho);
+      mostrarToast(`💾 Salva em: prontas/${nome}`, 'success');
+    } else {
+      let errorMsg = response.status;
+      try {
+        const errText = await response.text();
+        const errJson = JSON.parse(errText);
+        if (errJson && errJson.erro) {
+          errorMsg = errJson.erro;
+        }
+      } catch (e) {}
+      console.error('Erro ao salvar foto:', response.status, errorMsg);
+      mostrarToast(`❌ Erro ao salvar: ${errorMsg}`, 'error');
+    }
+  } catch (err) {
+    console.error('Falha ao salvar foto localmente:', err);
+    mostrarToast(`❌ Falha ao conectar servidor para salvar`, 'error');
+  }
 }
 
 // ---- CONTROLE DE TAMANHO E POSIÇÃO DO SUJEITO ----
@@ -2476,6 +2792,11 @@ function alterarMetodoRemocao(value) {
     if (aiBadge) aiBadge.textContent = 'Chroma Key';
     if (statusBar) statusBar.style.display = 'none';
     mostrarToast('🟢 Modo de Remoção: Chroma Key (Fundo Verde local)', 'success');
+  } else if (value === 'rembg') {
+    if (aiBadge) aiBadge.textContent = 'Rembg IA';
+    if (statusBar) statusBar.style.display = 'flex';
+    mostrarToast('🤖 Modo de Remoção: Inteligência Artificial (Rembg)', 'success');
+    atualizarStatusFundo();
   } else {
     if (aiBadge) aiBadge.textContent = 'BiRefNet IA';
     if (statusBar) statusBar.style.display = 'flex';

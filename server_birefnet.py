@@ -24,11 +24,18 @@ import sys
 import os
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
-from PIL import Image
+from PIL import Image, ImageFilter
 import numpy as np
 
 app = Flask(__name__)
 CORS(app)  # Permite requisições do browser (CORS)
+
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # ============================================================
 # CARREGAMENTO DO MODELO
@@ -96,12 +103,26 @@ except Exception as e:
 
 
 # ============================================================
+# CARREGAMENTO DO MODELO REMBG (FALLBACK SEGURO DE ALTA QUALIDADE)
+# ============================================================
+try:
+    from rembg import remove as rembg_remove
+    rembg_disponivel = True
+    print("Biblioteca 'rembg' de alta qualidade detectada e carregada!")
+    print()
+except ImportError:
+    rembg_disponivel = False
+
+# ============================================================
 # ENDPOINTS
 # ============================================================
 
 @app.route("/", methods=["GET"])
 def home():
-    root_dir = os.path.dirname(os.path.abspath(__file__))
+    if getattr(sys, "frozen", False):
+        root_dir = sys._MEIPASS
+    else:
+        root_dir = os.path.dirname(os.path.abspath(__file__))
     index_path = os.path.join(root_dir, "index.html")
     if os.path.exists(index_path):
         return send_from_directory(root_dir, "index.html")
@@ -163,16 +184,19 @@ def home():
 
 @app.route("/<path:path>")
 def serve_static(path):
-    root_dir = os.path.dirname(os.path.abspath(__file__))
+    if getattr(sys, "frozen", False):
+        root_dir = sys._MEIPASS
+    else:
+        root_dir = os.path.dirname(os.path.abspath(__file__))
     return send_from_directory(root_dir, path)
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "online",
-        "model": modelo_nome if modelo_carregado else "demo",
+        "model": modelo_nome if modelo_carregado else ("rembg (U2Net)" if rembg_disponivel else "demo"),
         "device": str(device) if device else "cpu",
-        "modelo_carregado": modelo_carregado,
+        "modelo_carregado": modelo_carregado or rembg_disponivel,
         "versao": "1.0.0"
     })
 
@@ -186,7 +210,29 @@ def remove_bg():
         arquivo = request.files["image"]
         img = Image.open(arquivo.stream).convert("RGB")
 
-        if modelo_carregado and pipeline is not None:
+        modelo_solicitado = request.args.get("model", "auto").lower()
+
+        usar_birefnet = False
+        usar_rembg = False
+
+        if modelo_solicitado == "birefnet":
+            if modelo_carregado and pipeline is not None:
+                usar_birefnet = True
+            elif rembg_disponivel:
+                usar_rembg = True
+        elif modelo_solicitado == "rembg":
+            if rembg_disponivel:
+                usar_rembg = True
+            elif modelo_carregado and pipeline is not None:
+                usar_birefnet = True
+        else:
+            # Padrão auto: prefere rembg por ser rápido, senão usa birefnet
+            if rembg_disponivel:
+                usar_rembg = True
+            elif modelo_carregado and pipeline is not None:
+                usar_birefnet = True
+
+        if usar_birefnet:
             resultado = pipeline(img)
 
             mask_img = None
@@ -206,6 +252,9 @@ def remove_bg():
             img_rgba = img.convert("RGBA")
             img_rgba.putalpha(mask_img)
 
+        elif usar_rembg:
+            img_rgba = rembg_remove(img)
+
         else:
             img_array = np.array(img)
             r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
@@ -220,6 +269,14 @@ def remove_bg():
             
             img_rgba = Image.fromarray(img_array).convert("RGBA")
             img_rgba.putalpha(Image.fromarray(alpha))
+
+        # Otimizar o canal alpha: remove serrilhado, limpa ruído do fundo e preenche roupas semi-transparentes
+        if img_rgba.mode == "RGBA":
+            r, g, b, a = img_rgba.split()
+            # LUT: alpha < 10 vira 0 (limpa fundo), alpha > 60 vira 255 (consolida roupas), meio termo é interpolado
+            lut = [0 if i < 10 else (255 if i > 60 else int((i - 10) * 255 / 50)) for i in range(256)]
+            a_clean = a.point(lut)
+            img_rgba = Image.merge("RGBA", (r, g, b, a_clean))
 
         buf = io.BytesIO()
         img_rgba.save(buf, format="PNG", optimize=True)
@@ -247,13 +304,44 @@ def remove_bg_base64():
         img_bytes = base64.b64decode(data["image_b64"])
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-        if modelo_carregado and pipeline is not None:
+        modelo_solicitado = data.get("model", "auto").lower()
+
+        usar_birefnet = False
+        usar_rembg = False
+
+        if modelo_solicitado == "birefnet":
+            if modelo_carregado and pipeline is not None:
+                usar_birefnet = True
+            elif rembg_disponivel:
+                usar_rembg = True
+        elif modelo_solicitado == "rembg":
+            if rembg_disponivel:
+                usar_rembg = True
+            elif modelo_carregado and pipeline is not None:
+                usar_birefnet = True
+        else:
+            if rembg_disponivel:
+                usar_rembg = True
+            elif modelo_carregado and pipeline is not None:
+                usar_birefnet = True
+
+        if usar_birefnet:
             resultado = pipeline(img)
             mask_img = resultado[0]["mask"].convert("L")
             img_rgba = img.convert("RGBA")
             img_rgba.putalpha(mask_img)
+        elif usar_rembg:
+            img_rgba = rembg_remove(img)
         else:
             img_rgba = img.convert("RGBA")
+
+        # Otimizar o canal alpha: remove serrilhado, limpa ruído do fundo e preenche roupas semi-transparentes
+        if img_rgba.mode == "RGBA":
+            r, g, b, a = img_rgba.split()
+            # LUT: alpha < 10 vira 0 (limpa fundo), alpha > 60 vira 255 (consolida roupas), meio termo é interpolado
+            lut = [0 if i < 10 else (255 if i > 60 else int((i - 10) * 255 / 50)) for i in range(256)]
+            a_clean = a.point(lut)
+            img_rgba = Image.merge("RGBA", (r, g, b, a_clean))
 
         buf = io.BytesIO()
         img_rgba.save(buf, format="PNG")
@@ -263,7 +351,7 @@ def remove_bg_base64():
         return jsonify({
             "mask_b64": mask_b64,
             "formato": "PNG",
-            "modo": "birefnet" if modelo_carregado else "demo"
+            "modo": "birefnet" if usar_birefnet else ("rembg" if usar_rembg else "demo")
         })
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
@@ -282,7 +370,10 @@ def save_photo():
         # Pasta de destino (aceita valor enviado do cliente ou padrão)
         destino_dir = data.get("destino_dir")
         if not destino_dir:
-            destino_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "capturas")
+            if getattr(sys, "frozen", False):
+                destino_dir = os.path.join(os.path.dirname(sys.executable), "capturas")
+            else:
+                destino_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "capturas")
             
         os.makedirs(destino_dir, exist_ok=True)
         filepath = os.path.join(destino_dir, filename)
@@ -296,7 +387,7 @@ def save_photo():
         with open(filepath, "wb") as f:
             f.write(img_bytes)
             
-        print(f"📸 Foto salva localmente: {filepath}")
+        print(f"Foto salva localmente: {filepath}")
         return jsonify({
             "status": "sucesso",
             "caminho": filepath
@@ -307,7 +398,12 @@ def save_photo():
 
 
 # Pasta para colocar imagens de fundos personalizados localmente
-FUNDOS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fundos")
+if getattr(sys, "frozen", False):
+    base_dir = os.path.dirname(sys.executable)
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+FUNDOS_DIR = os.path.join(base_dir, "fundos")
 os.makedirs(FUNDOS_DIR, exist_ok=True)
 
 @app.route("/list-backgrounds", methods=["GET"])
@@ -343,7 +439,7 @@ def save_background():
         with open(filepath, "wb") as f:
             f.write(img_bytes)
 
-        print(f"🖼️ Novo fundo salvo na pasta fundos: {filepath}")
+        print(f"Novo fundo salvo na pasta fundos: {filepath}")
         return jsonify({
             "status": "sucesso",
             "caminho": filepath
@@ -360,7 +456,7 @@ def delete_background(filename):
         filepath = os.path.join(FUNDOS_DIR, filename)
         if os.path.exists(filepath):
             os.remove(filepath)
-            print(f"🗑️ Fundo removido do servidor: {filepath}")
+            print(f"Fundo removido do servidor: {filepath}")
             return jsonify({"status": "sucesso"})
         else:
             return jsonify({"erro": "Arquivo nao encontrado"}), 404
