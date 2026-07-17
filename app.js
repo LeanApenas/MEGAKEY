@@ -765,9 +765,13 @@ function iniciarLiveViewWebcam() {
     }
 
     // HUD — overlay de informações
-    const iso = document.getElementById('selectISO').value || 'AUTO';
-    const exp = document.getElementById('selectExposicao').value || 'AUTO';
-    const wb  = document.getElementById('selectWB').value   || 'AUTO';
+    const elIso = document.getElementById('selectISO');
+    const elExp = document.getElementById('selectExposicao');
+    const elWb  = document.getElementById('selectWB');
+    
+    const iso = elIso ? (elIso.value || 'AUTO') : (Estado.configuracoes.iso || 'AUTO');
+    const exp = elExp ? (elExp.value || 'AUTO') : (Estado.configuracoes.exposicao || 'AUTO');
+    const wb  = elWb ? (elWb.value || 'AUTO') : (Estado.configuracoes.wb || 'AUTO');
     const res = Estado.resolucaoCamera || '—';
 
     // Barra inferior do HUD
@@ -1196,7 +1200,8 @@ function setWB(v) {
 
 function setTemperatura(v) {
   Estado.configuracoes.temperatura = parseInt(v);
-  document.getElementById('tempValue').textContent = `${v}K`;
+  const el = document.getElementById('tempValue');
+  if (el) el.textContent = `${v}K`;
   aplicarConfiguracoesCamera();
 }
 
