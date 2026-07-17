@@ -12,6 +12,96 @@
 </head>
 <body>
 
+<!-- TELA 1: LOGIN -->
+<div id="tela1-login" class="fullscreen-screen">
+  <div class="glass-card login-card">
+    <div class="login-header">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="4" fill="#00D4FF"/>
+        <path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z" stroke="#00D4FF" stroke-width="1.5" fill="none"/>
+      </svg>
+      <h2>MEGAKEY</h2>
+      <p>Acesse o painel do fotógrafo</p>
+    </div>
+    <div class="login-form">
+      <div class="form-group">
+        <label for="login-username">Usuário</label>
+        <input type="text" id="login-username" class="ctrl-input" placeholder="admin" value="admin">
+      </div>
+      <div class="form-group">
+        <label for="login-password">Senha</label>
+        <input type="password" id="login-password" class="ctrl-input" placeholder="••••" value="admin">
+      </div>
+      <button id="btn-login-entrar" class="btn-primary-large" onclick="realizarLogin()">Acessar</button>
+      <div id="login-error-msg" class="error-msg" style="display:none;">Usuário ou senha incorretos.</div>
+    </div>
+  </div>
+</div>
+
+<!-- TELA 2: IDENTIFICAÇÃO & SESSÃO -->
+<div id="tela2-session" class="fullscreen-screen" style="display:none;">
+  <!-- Botão de Configurações no Canto Superior Direito -->
+  <button class="session-config-btn" onclick="abrirConfigSessao()" title="Configurações da Sessão">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+  
+  <div class="glass-card session-card">
+    <div class="session-header">
+      <h2>Nova Sessão</h2>
+      <p>Preencha os dados do cliente para iniciar</p>
+    </div>
+    <div class="session-form">
+      <div class="form-group">
+        <label for="session-sigla">Sigla do Fotógrafo</label>
+        <input type="text" id="session-sigla" class="ctrl-input" placeholder="Ex: AB" maxlength="10">
+      </div>
+      <div class="form-group">
+        <label for="session-cliente">Nome do Cliente</label>
+        <input type="text" id="session-cliente" class="ctrl-input" placeholder="Ex: João Silva">
+      </div>
+      <div class="form-group">
+        <label for="session-numero">Número / Telefone</label>
+        <input type="text" id="session-numero" class="ctrl-input" placeholder="Ex: 11999998888">
+      </div>
+      <div class="form-group">
+        <label for="session-pose">Tipo de Pose</label>
+        <select id="session-pose" class="ctrl-select select-pose-large"></select>
+      </div>
+      <button id="btn-session-iniciar" class="btn-primary-large" onclick="iniciarSessao()">Iniciar</button>
+      <div id="session-error-msg" class="error-msg" style="display:none;">Por favor, preencha todos os campos.</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE CONFIGURAÇÕES DA TELA 2 -->
+<div class="modal-overlay" id="modalConfigSessao" onclick="fecharModal('modalConfigSessao')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚙️ Configurações da Sessão</h3>
+      <button class="modal-close" onclick="fecharModal('modalConfigSessao')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="cfg-sigla-padrao">Sigla Padrão do Fotógrafo</label>
+        <input type="text" id="cfg-sigla-padrao" class="ctrl-input" placeholder="Ex: FT">
+        <span class="cfg-hint">Será preenchida automaticamente ao iniciar ou redefinir a tela.</span>
+      </div>
+      <div class="form-group">
+        <label for="cfg-poses-lista">Lista de Poses (separadas por vírgula)</label>
+        <textarea id="cfg-poses-lista" class="ctrl-textarea" placeholder="Ex: Sorriso, Sério, Pose 1, Pose 2" rows="4"></textarea>
+        <span class="cfg-hint">Defina as opções que vão aparecer na seleção "Tipo de Pose".</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="fecharModal('modalConfigSessao')">Cancelar</button>
+      <button class="btn-modal-ok" onclick="salvarConfigSessao()">Salvar Configurações</button>
+    </div>
+  </div>
+</div>
+
 <!-- BARRA DE MENUS SUPERIOR -->
 <header class="topbar" id="topbar">
   <div class="topbar-brand">
@@ -191,7 +281,7 @@
     </div>
 
     <!-- MENU AJUDA -->
-    <div class="menu-item" id="menuAjuda">
+    <div class="menu-item" id="menuAjuda" style="display: none;">
       <button class="menu-btn" onclick="toggleMenu('menuAjudaDropdown')">Ajuda</button>
       <div class="dropdown" id="menuAjudaDropdown">
         <div class="dropdown-group">
@@ -220,6 +310,10 @@
     <button class="pb-btn pb-btn-primary" id="btnIniciarFotobooth" onclick="iniciarFotobooth()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Iniciar Fotobooth
+    </button>
+    <button class="pb-btn btn-session-end" id="btnNovaSessao" onclick="voltarParaSessao()" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.3)); border-color: rgba(239, 68, 68, 0.4); color: #ff9999; margin-left: 8px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;"><path d="M9 14L4 9l5-5M4 9h12.5M16 20h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1"/></svg>
+      Nova Sessão
     </button>
   </div>
 </div>
@@ -259,183 +353,186 @@
         <button class="btn-settings-sm" onclick="abrirSettingsAutoBracket()">Configurações...</button>
       </div>
 
-      <div class="control-row">
-        <label class="control-label">Espaço de Cor:</label>
+      <div style="display: none;">
+        <div class="control-row">
+          <label class="control-label">Espaço de Cor:</label>
+        </div>
       </div>
     </div>
 
-    <div class="divider"></div>
+    <div style="display: none;">
+      <div class="divider"></div>
 
-    <!-- INFORMAÇÕES DA CÂMERA -->
-    <div class="control-section">
-      <div class="camera-info-row">
-        <span class="info-label">Velocidade do obturador:</span>
+      <!-- INFORMAÇÕES DA CÂMERA -->
+      <div class="control-section">
+        <div class="camera-info-row">
+          <span class="info-label">Velocidade do obturador:</span>
+        </div>
+        <div class="camera-info-row">
+          <span class="info-label">Botão AF lock:</span>
+        </div>
+        <div class="camera-info-row">
+          <span class="info-label">Status Mirror Lockup:</span>
+        </div>
+        <div class="camera-info-row">
+          <span class="info-label">Tv:</span>
+          <div class="info-controls">
+            <select class="ctrl-select" id="selectTv" onchange="setTv(this.value)">
+              <option value="">—</option>
+            </select>
+            <select class="ctrl-select" id="selectAv" onchange="setAv(this.value)">
+              <option value="">Av</option>
+            </select>
+          </div>
+        </div>
       </div>
-      <div class="camera-info-row">
-        <span class="info-label">Botão AF lock:</span>
-      </div>
-      <div class="camera-info-row">
-        <span class="info-label">Status Mirror Lockup:</span>
-      </div>
-      <div class="camera-info-row">
-        <span class="info-label">Tv:</span>
-        <div class="info-controls">
-          <select class="ctrl-select" id="selectTv" onchange="setTv(this.value)">
+
+      <div class="divider"></div>
+
+      <!-- CONFIGURAÇÕES DE CÂMERA -->
+      <div class="control-section">
+
+        <div class="setting-row">
+          <label class="setting-label">Modo de Exposição:</label>
+          <select class="ctrl-select" id="selectExposicao" onchange="setExposicao(this.value)">
             <option value="">—</option>
+            <option value="manual">Manual</option>
+            <option value="av">Prioridade de Abertura</option>
+            <option value="tv">Prioridade de Obturador</option>
+            <option value="p">Programa</option>
+            <option value="auto">Auto</option>
+            <option value="bulb">Bulb</option>
           </select>
-          <select class="ctrl-select" id="selectAv" onchange="setAv(this.value)">
-            <option value="">Av</option>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Compensação de Exposição:</label>
+          <select class="ctrl-select" id="selectCompensacao" onchange="setCompensacao(this.value)">
+            <option value="0">0</option>
+            <option value="+1/3">+1/3</option>
+            <option value="+2/3">+2/3</option>
+            <option value="+1">+1</option>
+            <option value="+1 1/3">+1 1/3</option>
+            <option value="+1 2/3">+1 2/3</option>
+            <option value="+2">+2</option>
+            <option value="+2 1/3">+2 1/3</option>
+            <option value="+2 2/3">+2 2/3</option>
+            <option value="+3">+3</option>
+            <option value="-1/3">-1/3</option>
+            <option value="-2/3">-2/3</option>
+            <option value="-1">-1</option>
+            <option value="-1 1/3">-1 1/3</option>
+            <option value="-1 2/3">-1 2/3</option>
+            <option value="-2">-2</option>
+            <option value="-2 1/3">-2 1/3</option>
+            <option value="-2 2/3">-2 2/3</option>
+            <option value="-3">-3</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">ISO:</label>
+          <select class="ctrl-select" id="selectISO" onchange="setISO(this.value)">
+            <option value="">—</option>
+            <option value="auto">Auto</option>
+            <option value="100">ISO 100</option>
+            <option value="200">ISO 200</option>
+            <option value="400">ISO 400</option>
+            <option value="800">ISO 800</option>
+            <option value="1600">ISO 1600</option>
+            <option value="3200">ISO 3200</option>
+            <option value="6400">ISO 6400</option>
+            <option value="12800">ISO 12800</option>
+            <option value="25600">ISO 25600</option>
+            <option value="51200">ISO 51200</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Tamanho/Qualidade:</label>
+          <select class="ctrl-select" id="selectQualidade" onchange="setQualidade(this.value)">
+            <option value="">—</option>
+            <option value="raw">RAW</option>
+            <option value="raw+jpeg">RAW + JPEG</option>
+            <option value="jpeg-large-fine">JPEG Grande (Alta qualidade)</option>
+            <option value="jpeg-large-normal">JPEG Grande (Normal)</option>
+            <option value="jpeg-medium-fine">JPEG Médio (Alta qualidade)</option>
+            <option value="jpeg-small">JPEG Pequeno</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Balanço de Branco:</label>
+          <select class="ctrl-select" id="selectWB" onchange="setWB(this.value)">
+            <option value="">—</option>
+            <option value="auto">Auto</option>
+            <option value="daylight">Luz do dia</option>
+            <option value="shade">Sombra</option>
+            <option value="cloudy">Nublado</option>
+            <option value="tungsten">Tungstênio</option>
+            <option value="fluorescent">Fluorescente</option>
+            <option value="flash">Flash</option>
+            <option value="custom">Personalizado</option>
+            <option value="kelvin">Temperatura (K)</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Temperatura de Cor:</label>
+          <div class="temp-control">
+            <input type="range" id="sliderTemp" min="2500" max="10000" step="100" value="5500" oninput="setTemperatura(this.value)" class="ctrl-slider" />
+            <span class="temp-value" id="tempValue">5500K</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Modo de Medição:</label>
+          <select class="ctrl-select" id="selectMedicao" onchange="setMedicao(this.value)">
+            <option value="">—</option>
+            <option value="evaluative">Avaliativa</option>
+            <option value="partial">Parcial</option>
+            <option value="spot">Ponto</option>
+            <option value="center">Centro Ponderado</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Modo de Drive:</label>
+          <select class="ctrl-select" id="selectDrive" onchange="setDrive(this.value)">
+            <option value="">—</option>
+            <option value="single">Foto única</option>
+            <option value="continuous">Contínuo</option>
+            <option value="continuous-h">Contínuo Alta Velocidade</option>
+            <option value="self10">Temporizador 10s</option>
+            <option value="self2">Temporizador 2s</option>
+            <option value="self10-cont">Temporizador 10s + Contínuo</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Modo AF:</label>
+          <select class="ctrl-select" id="selectAF" onchange="setAF(this.value)">
+            <option value="">—</option>
+            <option value="one-shot">One Shot</option>
+            <option value="ai-servo">AI Servo</option>
+            <option value="ai-focus">AI Focus</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Detalhe de AF:</label>
+          <select class="ctrl-select" id="selectAFDetail" onchange="setAFDetail(this.value)">
+            <option value="">—</option>
+            <option value="auto">Auto</option>
+            <option value="center">Centro</option>
+            <option value="zone">Zona</option>
+            <option value="point">Ponto único</option>
+            <option value="expand">Expandir ponto</option>
+            <option value="tracking">Rastreamento</option>
           </select>
         </div>
       </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- CONFIGURAÇÕES DE CÂMERA -->
-    <div class="control-section">
-
-      <div class="setting-row">
-        <label class="setting-label">Modo de Exposição:</label>
-        <select class="ctrl-select" id="selectExposicao" onchange="setExposicao(this.value)">
-          <option value="">—</option>
-          <option value="manual">Manual</option>
-          <option value="av">Prioridade de Abertura</option>
-          <option value="tv">Prioridade de Obturador</option>
-          <option value="p">Programa</option>
-          <option value="auto">Auto</option>
-          <option value="bulb">Bulb</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Compensação de Exposição:</label>
-        <select class="ctrl-select" id="selectCompensacao" onchange="setCompensacao(this.value)">
-          <option value="0">0</option>
-          <option value="+1/3">+1/3</option>
-          <option value="+2/3">+2/3</option>
-          <option value="+1">+1</option>
-          <option value="+1 1/3">+1 1/3</option>
-          <option value="+1 2/3">+1 2/3</option>
-          <option value="+2">+2</option>
-          <option value="+2 1/3">+2 1/3</option>
-          <option value="+2 2/3">+2 2/3</option>
-          <option value="+3">+3</option>
-          <option value="-1/3">-1/3</option>
-          <option value="-2/3">-2/3</option>
-          <option value="-1">-1</option>
-          <option value="-1 1/3">-1 1/3</option>
-          <option value="-1 2/3">-1 2/3</option>
-          <option value="-2">-2</option>
-          <option value="-2 1/3">-2 1/3</option>
-          <option value="-2 2/3">-2 2/3</option>
-          <option value="-3">-3</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">ISO:</label>
-        <select class="ctrl-select" id="selectISO" onchange="setISO(this.value)">
-          <option value="">—</option>
-          <option value="auto">Auto</option>
-          <option value="100">ISO 100</option>
-          <option value="200">ISO 200</option>
-          <option value="400">ISO 400</option>
-          <option value="800">ISO 800</option>
-          <option value="1600">ISO 1600</option>
-          <option value="3200">ISO 3200</option>
-          <option value="6400">ISO 6400</option>
-          <option value="12800">ISO 12800</option>
-          <option value="25600">ISO 25600</option>
-          <option value="51200">ISO 51200</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Tamanho/Qualidade:</label>
-        <select class="ctrl-select" id="selectQualidade" onchange="setQualidade(this.value)">
-          <option value="">—</option>
-          <option value="raw">RAW</option>
-          <option value="raw+jpeg">RAW + JPEG</option>
-          <option value="jpeg-large-fine">JPEG Grande (Alta qualidade)</option>
-          <option value="jpeg-large-normal">JPEG Grande (Normal)</option>
-          <option value="jpeg-medium-fine">JPEG Médio (Alta qualidade)</option>
-          <option value="jpeg-small">JPEG Pequeno</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Balanço de Branco:</label>
-        <select class="ctrl-select" id="selectWB" onchange="setWB(this.value)">
-          <option value="">—</option>
-          <option value="auto">Auto</option>
-          <option value="daylight">Luz do dia</option>
-          <option value="shade">Sombra</option>
-          <option value="cloudy">Nublado</option>
-          <option value="tungsten">Tungstênio</option>
-          <option value="fluorescent">Fluorescente</option>
-          <option value="flash">Flash</option>
-          <option value="custom">Personalizado</option>
-          <option value="kelvin">Temperatura (K)</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Temperatura de Cor:</label>
-        <div class="temp-control">
-          <input type="range" id="sliderTemp" min="2500" max="10000" step="100" value="5500" oninput="setTemperatura(this.value)" class="ctrl-slider" />
-          <span class="temp-value" id="tempValue">5500K</span>
-        </div>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Modo de Medição:</label>
-        <select class="ctrl-select" id="selectMedicao" onchange="setMedicao(this.value)">
-          <option value="">—</option>
-          <option value="evaluative">Avaliativa</option>
-          <option value="partial">Parcial</option>
-          <option value="spot">Ponto</option>
-          <option value="center">Centro Ponderado</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Modo de Drive:</label>
-        <select class="ctrl-select" id="selectDrive" onchange="setDrive(this.value)">
-          <option value="">—</option>
-          <option value="single">Foto única</option>
-          <option value="continuous">Contínuo</option>
-          <option value="continuous-h">Contínuo Alta Velocidade</option>
-          <option value="self10">Temporizador 10s</option>
-          <option value="self2">Temporizador 2s</option>
-          <option value="self10-cont">Temporizador 10s + Contínuo</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Modo AF:</label>
-        <select class="ctrl-select" id="selectAF" onchange="setAF(this.value)">
-          <option value="">—</option>
-          <option value="one-shot">One Shot</option>
-          <option value="ai-servo">AI Servo</option>
-          <option value="ai-focus">AI Focus</option>
-          <option value="manual">Manual</option>
-        </select>
-      </div>
-
-      <div class="setting-row">
-        <label class="setting-label">Detalhe de AF:</label>
-        <select class="ctrl-select" id="selectAFDetail" onchange="setAFDetail(this.value)">
-          <option value="">—</option>
-          <option value="auto">Auto</option>
-          <option value="center">Centro</option>
-          <option value="zone">Zona</option>
-          <option value="point">Ponto único</option>
-          <option value="expand">Expandir ponto</option>
-          <option value="tracking">Rastreamento</option>
-        </select>
-      </div>
-    </div>
 
     </div>
   </aside>

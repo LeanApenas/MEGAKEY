@@ -10,6 +10,7 @@
 // ============================================
 const Estado = {
   conectado: false,
+  cameraMode: 'webcam', // 'webcam' | 'digicamcontrol'
   liveViewAtivo: false,
   gradeAtiva: false,
   modoP_B: false,
@@ -71,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
   atualizarStatusUI();
   inicializarPainelFundo();
   inicializarDragAndDropFundos();
+  inicializarFluxoTelas();
   mostrarToast('MEGAKEY iniciado com sucesso!', 'info');
 });
 
@@ -118,11 +120,19 @@ async function listarDispositivosVideo() {
     // Precisamos pedir permissão antes de listar
     const streamTemp = await navigator.mediaDevices.getUserMedia({ video: true });
     streamTemp.getTracks().forEach(t => t.stop());
+  } catch (err) {
+    console.warn('Erro ao pedir permissão de câmera:', err);
+    if (err.name === 'NotAllowedError') {
+      mostrarToast('⚠️ Permissão de câmera negada. Ative o acesso nas configurações do seu navegador.', 'warning');
+    }
+  }
 
+  try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     dispositivosVideo = devices.filter(d => d.kind === 'videoinput');
     return dispositivosVideo;
   } catch (err) {
+    console.error('Erro ao enumerar dispositivos:', err);
     return [];
   }
 }
@@ -135,14 +145,13 @@ async function conectarCamera(deviceId = null) {
     return;
   }
 
-  // Se há múltiplos dispositivos e não foi especificado, mostra seletor
-  const lista = await listarDispositivosVideo();
-  if (lista.length > 1 && !deviceId) {
-    mostrarSeletorCamera(lista);
+  if (deviceId) {
+    await iniciarWebcam(deviceId);
     return;
   }
 
-  await iniciarWebcam(deviceId);
+  const lista = await listarDispositivosVideo();
+  mostrarSeletorCamera(lista);
 }
 
 async function iniciarWebcam(deviceId = null) {
@@ -174,21 +183,21 @@ async function iniciarWebcam(deviceId = null) {
       videoEl.onloadedmetadata = () => {
         videoEl.play().then(resolve).catch(resolve);
       };
-      // Fallback caso o evento já tenha disparado
       if (videoEl.readyState >= 2) resolve();
     });
 
-    // Atualiza info da câmera na topbar
     const track = streamAtual.getVideoTracks()[0];
     const settings = track.getSettings();
     const nome = track.label || 'Webcam';
 
     Estado.conectado = true;
+    Estado.cameraMode = 'webcam';
     Estado.nomeCamera = nome;
     Estado.resolucaoCamera = `${settings.width || '—'}×${settings.height || '—'}`;
 
     atualizarStatusUI();
     carregarOpcoesCamera();
+    aplicarConfiguracoesCamera();
     mostrarToast(`✅ ${nome} (${Estado.resolucaoCamera})`, 'success');
 
     // Inicia Live View imediatamente
@@ -207,7 +216,6 @@ async function iniciarWebcam(deviceId = null) {
 }
 
 function mostrarSeletorCamera(lista) {
-  // Remove seletor anterior se existir
   const anterior = document.getElementById('seletorCameraModal');
   if (anterior) anterior.remove();
 
@@ -220,32 +228,62 @@ function mostrarSeletorCamera(lista) {
   box.className = 'modal-box';
   box.onclick = e => e.stopPropagation();
 
+  const webcamsHtml = lista.map((d, i) => `
+    <button class="camera-device-btn" onclick="selecionarDispositivoCamera('${d.deviceId}')" style="
+      display:flex;align-items:center;gap:12px;
+      padding:12px 16px;
+      width:100%;
+      background:var(--bg-elevated);
+      border:1px solid var(--border-medium);
+      border-radius:var(--radius-md);
+      color:var(--text-primary);
+      cursor:pointer;
+      text-align:left;
+      transition:var(--transition);
+      font-family:'Inter',sans-serif;
+      font-size:13px;
+    ">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="1.5"><path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z"/><circle cx="12" cy="12" r="4"/></svg>
+      <span>${d.label || `Webcam ${i + 1}`}</span>
+    </button>
+  `).join('');
+
   box.innerHTML = `
     <div class="modal-header">
       <h3>🎥 Selecionar Câmera</h3>
       <button class="modal-close" onclick="document.getElementById('seletorCameraModal').remove()">✕</button>
     </div>
-    <div class="modal-body">
-      <p style="color:var(--text-secondary);margin-bottom:8px">${lista.length} câmera(s) encontrada(s). Selecione qual deseja usar:</p>
-      <div id="listaCameras" style="display:flex;flex-direction:column;gap:8px;">
-        ${lista.map((d, i) => `
-          <button class="camera-device-btn" onclick="selecionarDispositivoCamera('${d.deviceId}')" style="
-            display:flex;align-items:center;gap:12px;
-            padding:12px 16px;
-            background:var(--bg-elevated);
-            border:1px solid var(--border-medium);
-            border-radius:var(--radius-md);
-            color:var(--text-primary);
-            cursor:pointer;
-            text-align:left;
-            transition:var(--transition);
-            font-family:'Inter',sans-serif;
-            font-size:13px;
-          ">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="1.5"><path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z"/><circle cx="12" cy="12" r="4"/></svg>
-            <span>${d.label || `Câmera ${i + 1}`}</span>
-          </button>
-        `).join('')}
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <h4 style="color:#00D4FF;margin-bottom:8px;font-size:14px;">🔌 Conexão Nativa (Recomendado para Canon/Nikon/Sony)</h4>
+        <button class="camera-device-btn" onclick="selecionarCameraNativaDCC()" style="
+          display:flex;align-items:center;gap:12px;
+          padding:12px 16px;
+          width:100%;
+          background:rgba(0, 212, 255, 0.1);
+          border:1px solid rgba(0, 212, 255, 0.4);
+          border-radius:var(--radius-md);
+          color:#00D4FF;
+          cursor:pointer;
+          text-align:left;
+          transition:var(--transition);
+          font-family:'Inter',sans-serif;
+          font-weight:600;
+          font-size:13px;
+        ">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8.5C2 7.1 3.1 6 4.5 6H6L8 3h8l2 3h1.5C20.9 6 22 7.1 22 8.5v9c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-9z"/><circle cx="12" cy="12" r="4"/></svg>
+          <span>Canon / Nikon / Sony DSLR (via digiCamControl)</span>
+        </button>
+        <p style="color:var(--text-secondary);font-size:11px;margin-top:6px;line-height:1.4;">
+          Requer o programa gratuito <strong>digiCamControl</strong> aberto no computador com o Servidor Web ativo nas configurações.
+        </p>
+      </div>
+      
+      <div style="border-top:1px solid var(--border-medium);padding-top:12px;">
+        <h4 style="color:var(--text-primary);margin-bottom:8px;font-size:14px;">📷 Webcams USB / Drivers Virtuais</h4>
+        <div id="listaCameras" style="display:flex;flex-direction:column;gap:8px;">
+          ${webcamsHtml || '<p style="color:var(--text-secondary);font-size:12px;">Nenhuma webcam USB detectada.</p>'}
+        </div>
       </div>
     </div>
   `;
@@ -261,17 +299,53 @@ async function selecionarDispositivoCamera(deviceId) {
   await iniciarWebcam(deviceId);
 }
 
-function desconectarCamera() {
-  // Para o stream da webcam
-  if (streamAtual) {
-    streamAtual.getTracks().forEach(t => t.stop());
-    streamAtual = null;
+async function selecionarCameraNativaDCC() {
+  const modal = document.getElementById('seletorCameraModal');
+  if (modal) modal.remove();
+
+  mostrarToast('Conectando ao digiCamControl...', 'info');
+
+  try {
+    const resp = await fetch('http://localhost:5513/session.json');
+    if (!resp.ok) throw new Error('Não foi possível conectar');
+    const session = await resp.json();
+
+    // Inicia o Live View no digiCamControl
+    await fetch('http://localhost:5513/?CMD=LiveViewWnd_Show');
+
+    Estado.conectado = true;
+    Estado.cameraMode = 'digicamcontrol';
+    Estado.nomeCamera = 'Canon DSLR (via digiCamControl)';
+    Estado.resolucaoCamera = 'Live View Nativo';
+
+    atualizarStatusUI();
+    carregarOpcoesCamera();
+    aplicarConfiguracoesCamera();
+    mostrarToast('✅ Canon (digiCamControl) conectada com sucesso!', 'success');
+
+    iniciarLiveViewWebcam();
+
+  } catch (err) {
+    console.error(err);
+    mostrarToast('❌ Erro: Certifique-se de que o digiCamControl está aberto e o servidor Web está ativo nas configurações.', 'error');
   }
-  if (videoEl) {
-    videoEl.srcObject = null;
+}
+
+function desconectarCamera() {
+  if (Estado.cameraMode === 'digicamcontrol') {
+    fetch('http://localhost:5513/?CMD=LiveViewWnd_Hide').catch(() => {});
+  } else {
+    if (streamAtual) {
+      streamAtual.getTracks().forEach(t => t.stop());
+      streamAtual = null;
+    }
+    if (videoEl) {
+      videoEl.srcObject = null;
+    }
   }
 
   Estado.conectado = false;
+  Estado.cameraMode = 'webcam';
   Estado.liveViewAtivo = false;
   pararLiveView();
   atualizarStatusUI();
@@ -339,24 +413,31 @@ function disparar() {
   }, 120);
 }
 
-function capturarFoto() {
-  const prefixo = localStorage.getItem('megakey_prefixo_nome') || 'IMG';
-  const agora = new Date();
-  const nome = `${prefixo}_${agora.getFullYear()}${String(agora.getMonth()+1).padStart(2,'0')}${String(agora.getDate()).padStart(2,'0')}_${String(agora.getHours()).padStart(2,'0')}${String(agora.getMinutes()).padStart(2,'0')}${String(agora.getSeconds()).padStart(2,'0')}.jpg`;
+async function capturarFoto() {
+  // Higieniza strings para nomes de arquivo seguros no Windows
+  const cleanString = (str) => {
+    if (!str) return '';
+    return str.normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "") // remove acentos
+              .replace(/[^a-zA-Z0-9]/g, '_')   // substitui caracteres especiais por _
+              .replace(/__+/g, '_')            // remove múltiplos _
+              .replace(/^_+|_+$/g, '');        // remove _ no início/fim
+  };
 
-  // Captura frame real da webcam se estiver disponível
+  const sigla = cleanString(localStorage.getItem('megakey_session_sigla')) || 'FOT';
+  const cliente = cleanString(localStorage.getItem('megakey_session_cliente')) || 'CLIENTE';
+  const numero = cleanString(localStorage.getItem('megakey_session_numero')) || '0000';
+  const pose = cleanString(localStorage.getItem('megakey_session_pose')) || 'POSE';
+
+  const agora = new Date();
+  const timestamp = `${agora.getFullYear()}${String(agora.getMonth()+1).padStart(2,'0')}${String(agora.getDate()).padStart(2,'0')}_${String(agora.getHours()).padStart(2,'0')}${String(agora.getMinutes()).padStart(2,'0')}${String(agora.getSeconds()).padStart(2,'0')}`;
+  
+  const nome = `${sigla}_${cliente}_${numero}_${pose}_${timestamp}.jpg`;
+
   let frameDataURL = null;
 
-  if (videoEl && streamAtual && videoEl.readyState >= 2) {
-    const snapCanvas = document.createElement('canvas');
-    snapCanvas.width  = videoEl.videoWidth  || 320;
-    snapCanvas.height = videoEl.videoHeight || 240;
-    const snapCtx = snapCanvas.getContext('2d');
-
-    if (Estado.modoP_B) snapCtx.filter = 'grayscale(100%)';
-    snapCtx.drawImage(videoEl, 0, 0, snapCanvas.width, snapCanvas.height);
-
-    // Efeito de flash na tela
+  // Efeito de flash na tela
+  const dispararFlashVisual = () => {
     const flashEl = document.createElement('div');
     flashEl.style.cssText = `
       position:fixed;inset:0;background:white;
@@ -365,8 +446,49 @@ function capturarFoto() {
     `;
     document.body.appendChild(flashEl);
     setTimeout(() => flashEl.remove(), 350);
+  };
 
-    frameDataURL = snapCanvas.toDataURL('image/jpeg', 0.95);
+  if (Estado.cameraMode === 'digicamcontrol') {
+    mostrarToast('Disparando câmera Canon...', 'info');
+    try {
+      // Dispara o comando de captura
+      await fetch('http://localhost:5513/?CMD=Capture');
+      dispararFlashVisual();
+      
+      // Aguarda 1.5s para a câmera terminar a exposição e transferir a imagem
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Busca o preview em alta resolução do digiCamControl
+      const resp = await fetch('http://localhost:5513/preview.jpg?ts=' + Date.now());
+      if (resp.ok) {
+        const blob = await resp.blob();
+        frameDataURL = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        throw new Error('Falha ao baixar imagem do digiCamControl');
+      }
+    } catch (err) {
+      console.error(err);
+      mostrarToast('❌ Erro na captura via digiCamControl', 'error');
+    }
+  } else {
+    // Captura frame real da webcam se estiver disponível
+    if (videoEl && streamAtual && videoEl.readyState >= 2) {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width  = videoEl.videoWidth  || 320;
+      snapCanvas.height = videoEl.videoHeight || 240;
+      const snapCtx = snapCanvas.getContext('2d');
+
+      snapCtx.filter = obterFiltroCamera();
+      snapCtx.drawImage(videoEl, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      dispararFlashVisual();
+
+      frameDataURL = snapCanvas.toDataURL('image/jpeg', 0.95);
+    }
   }
 
   mostrarToast(`📸 ${nome}`, 'success');
@@ -549,8 +671,27 @@ function toggleLiveView() {
   }
 }
 
+let dccLiveViewImg = new Image();
+let dccLastLoaded = true;
+
+function atualizarDccLiveView() {
+  if (!Estado.conectado || Estado.cameraMode !== 'digicamcontrol' || !Estado.liveViewAtivo) return;
+  if (!dccLastLoaded) return;
+  
+  dccLastLoaded = false;
+  const tempImg = new Image();
+  tempImg.onload = () => {
+    dccLiveViewImg = tempImg;
+    dccLastLoaded = true;
+  };
+  tempImg.onerror = () => {
+    dccLastLoaded = true;
+  };
+  tempImg.src = 'http://localhost:5513/liveview.jpg?ts=' + Date.now();
+}
+
 function iniciarLiveViewWebcam() {
-  if (!videoEl || !streamAtual) return;
+  if (Estado.cameraMode !== 'digicamcontrol' && (!videoEl || !streamAtual)) return;
 
   Estado.liveViewAtivo = true;
   document.getElementById('btnLiveViewToggle').classList.add('active');
@@ -576,10 +717,24 @@ function iniciarLiveViewWebcam() {
   const ctx = canvas.getContext('2d');
 
   function loop() {
-    if (!Estado.liveViewAtivo || !videoEl) return;
+    if (!Estado.liveViewAtivo) return;
 
-    const vw = videoEl.videoWidth  || 1;
-    const vh = videoEl.videoHeight || 1;
+    let sourceEl = null;
+    let vw = 1;
+    let vh = 1;
+
+    if (Estado.cameraMode === 'digicamcontrol') {
+      atualizarDccLiveView();
+      sourceEl = dccLiveViewImg;
+      vw = dccLiveViewImg.naturalWidth || 640;
+      vh = dccLiveViewImg.naturalHeight || 480;
+    } else {
+      if (!videoEl) return;
+      sourceEl = videoEl;
+      vw = videoEl.videoWidth  || 1;
+      vh = videoEl.videoHeight || 1;
+    }
+
     const cw = canvas.width;
     const ch = canvas.height;
 
@@ -594,7 +749,9 @@ function iniciarLiveViewWebcam() {
 
     // Desenha vídeo com fundo virtual (ou sem fundo, se desativado)
     ctx.save();
-    compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh);
+    if (sourceEl) {
+      compositorFundo(ctx, sourceEl, cw, ch, dx, dy, dw, dh);
+    }
     ctx.restore();
 
     // Espelha o canvas limpo (sem HUD) na segunda tela
@@ -603,8 +760,8 @@ function iniciarLiveViewWebcam() {
     }
 
     // Solicita máscara BiRefNet em tempo real (quando ativo)
-    if (Estado.fundo.ativo && Estado.fundo.birefnetTempoReal && Estado.fundo.birefnetOnline) {
-      requisitarMascaraBiRefNet(videoEl, cw, ch);
+    if (Estado.fundo.ativo && Estado.fundo.birefnetTempoReal && Estado.fundo.birefnetOnline && sourceEl) {
+      requisitarMascaraBiRefNet(sourceEl, cw, ch);
     }
 
     // HUD — overlay de informações
@@ -775,19 +932,254 @@ function setOrientacao(orientacao) {
 // ============================================
 // CONFIGURAÇÕES DA CÂMERA
 // ============================================
+async function aplicarConfiguracoesCamera() {
+  if (Estado.cameraMode === 'digicamcontrol') {
+    // 1. ISO
+    if (Estado.configuracoes.iso) {
+      let isoVal = Estado.configuracoes.iso;
+      if (isoVal === 'auto') isoVal = 'Auto';
+      fetch(`http://localhost:5513/?slc=set&param1=Iso&param2=${encodeURIComponent(isoVal)}`).catch(err => console.error(err));
+    }
+    // 2. Compensação
+    if (Estado.configuracoes.compensacao !== undefined) {
+      fetch(`http://localhost:5513/?slc=set&param1=ExposureCompensation&param2=${encodeURIComponent(Estado.configuracoes.compensacao)}`).catch(err => console.error(err));
+    }
+    // 3. Balanço de Branco
+    if (Estado.configuracoes.wb) {
+      let wbVal = Estado.configuracoes.wb;
+      const mapaWB = {
+        'auto': 'Auto',
+        'daylight': 'Daylight',
+        'shade': 'Shade',
+        'cloudy': 'Cloudy',
+        'tungsten': 'Tungsten',
+        'fluorescent': 'Fluorescent',
+        'flash': 'Flash',
+        'custom': 'Custom',
+        'kelvin': 'Kelvin'
+      };
+      wbVal = mapaWB[wbVal] || wbVal;
+      fetch(`http://localhost:5513/?slc=set&param1=WhiteBalance&param2=${encodeURIComponent(wbVal)}`).catch(err => console.error(err));
+    }
+    // 4. Tv (Velocidade de Obturador)
+    if (Estado.configuracoes.tv) {
+      fetch(`http://localhost:5513/?slc=set&param1=ShutterSpeed&param2=${encodeURIComponent(Estado.configuracoes.tv)}`).catch(err => console.error(err));
+    }
+    // 5. Av (Abertura)
+    if (Estado.configuracoes.av) {
+      fetch(`http://localhost:5513/?slc=set&param1=Aperture&param2=${encodeURIComponent(Estado.configuracoes.av)}`).catch(err => console.error(err));
+    }
+    return;
+  }
+
+  if (!streamAtual) return;
+  const track = streamAtual.getVideoTracks()[0];
+  if (!track) return;
+
+  const caps = typeof track.getCapabilities === 'function' ? track.getCapabilities() : {};
+  const advancedConstraints = {};
+
+  // 1. ISO
+  if (Estado.configuracoes.iso) {
+    if (Estado.configuracoes.iso === 'auto') {
+      advancedConstraints.exposureMode = 'continuous';
+    } else {
+      const isoVal = parseInt(Estado.configuracoes.iso);
+      if (!isNaN(isoVal)) {
+        if (caps.exposureMode && caps.exposureMode.includes('manual')) {
+          advancedConstraints.exposureMode = 'manual';
+        }
+        if (caps.iso) {
+          const minIso = caps.iso.min || 100;
+          const maxIso = caps.iso.max || 6400;
+          const stepIso = caps.iso.step || 1;
+          let targetIso = Math.max(minIso, Math.min(maxIso, isoVal));
+          targetIso = Math.round((targetIso - minIso) / stepIso) * stepIso + minIso;
+          advancedConstraints.iso = targetIso;
+        } else {
+          advancedConstraints.iso = isoVal;
+        }
+      }
+    }
+  }
+
+  // 2. Modo de Exposição
+  if (Estado.configuracoes.exposicao) {
+    const exp = Estado.configuracoes.exposicao.toLowerCase();
+    if (caps.exposureMode) {
+      if (exp === 'auto' && caps.exposureMode.includes('continuous')) {
+        advancedConstraints.exposureMode = 'continuous';
+      } else if (exp === 'manual' && caps.exposureMode.includes('manual')) {
+        advancedConstraints.exposureMode = 'manual';
+      }
+    }
+  }
+
+  // 3. Compensação de Exposição
+  if (Estado.configuracoes.compensacao !== undefined) {
+    let compVal = 0;
+    const rawComp = Estado.configuracoes.compensacao;
+    if (rawComp && rawComp !== '0') {
+      try {
+        if (rawComp.includes('/')) {
+          const parts = rawComp.split('/');
+          const num = parseFloat(parts[0]);
+          const den = parseFloat(parts[1]);
+          if (parts[0].includes(' ')) {
+            const subparts = parts[0].split(' ');
+            const integerPart = parseFloat(subparts[0]);
+            const fractionPart = parseFloat(subparts[1]) / den;
+            compVal = integerPart >= 0 ? integerPart + fractionPart : integerPart - fractionPart;
+          } else {
+            compVal = num / den;
+          }
+        } else {
+          compVal = parseFloat(rawComp);
+        }
+      } catch (e) {
+        console.error('Erro ao converter compensação de exposição:', e);
+      }
+    }
+    if (!isNaN(compVal)) {
+      if (caps.exposureCompensation) {
+        const minComp = caps.exposureCompensation.min || -2;
+        const maxComp = caps.exposureCompensation.max || 2;
+        const stepComp = caps.exposureCompensation.step || 0.1;
+        let targetComp = Math.max(minComp, Math.min(maxComp, compVal));
+        targetComp = Math.round((targetComp - minComp) / stepComp) * stepComp + minComp;
+        advancedConstraints.exposureCompensation = targetComp;
+      } else {
+        advancedConstraints.exposureCompensation = compVal;
+      }
+    }
+  }
+
+  // 4. Balanço de Branco & Temperatura de Cor
+  if (Estado.configuracoes.wb) {
+    const wb = Estado.configuracoes.wb.toLowerCase();
+    if (caps.whiteBalanceMode) {
+      if (wb === 'auto' && caps.whiteBalanceMode.includes('continuous')) {
+        advancedConstraints.whiteBalanceMode = 'continuous';
+      } else if (wb === 'kelvin' && caps.whiteBalanceMode.includes('manual')) {
+        advancedConstraints.whiteBalanceMode = 'manual';
+        if (Estado.configuracoes.temperatura) {
+          const temp = Estado.configuracoes.temperatura;
+          if (caps.colorTemperature) {
+            const minTemp = caps.colorTemperature.min || 2000;
+            const maxTemp = caps.colorTemperature.max || 10000;
+            const stepTemp = caps.colorTemperature.step || 50;
+            let targetTemp = Math.max(minTemp, Math.min(maxTemp, temp));
+            targetTemp = Math.round((targetTemp - minTemp) / stepTemp) * stepTemp + minTemp;
+            advancedConstraints.colorTemperature = targetTemp;
+          } else {
+            advancedConstraints.colorTemperature = temp;
+          }
+        }
+      } else if (caps.whiteBalanceMode.includes(wb)) {
+        advancedConstraints.whiteBalanceMode = wb;
+      }
+    }
+  }
+
+  // 5. Modo AF
+  if (Estado.configuracoes.af) {
+    const af = Estado.configuracoes.af.toLowerCase();
+    if (caps.focusMode) {
+      if (af === 'one-shot' && caps.focusMode.includes('single-shot')) {
+        advancedConstraints.focusMode = 'single-shot';
+      } else if (af === 'ai-servo' && caps.focusMode.includes('continuous')) {
+        advancedConstraints.focusMode = 'continuous';
+      } else if (af === 'manual' && caps.focusMode.includes('manual')) {
+        advancedConstraints.focusMode = 'manual';
+      }
+    }
+  }
+
+  console.log('Aplicando restrições avançadas:', advancedConstraints);
+  try {
+    if (Object.keys(advancedConstraints).length > 0) {
+      await track.applyConstraints({
+        advanced: [advancedConstraints]
+      });
+      console.log('Restrições aplicadas com sucesso.');
+      return;
+    }
+  } catch (err) {
+    console.warn('Erro ao aplicar restrições avançadas em bloco, tentando individualmente:', err);
+  }
+
+  // Tenta individualmente
+  for (const [key, val] of Object.entries(advancedConstraints)) {
+    try {
+      const single = {};
+      single[key] = val;
+      if (key === 'iso' && advancedConstraints.exposureMode) {
+        single.exposureMode = advancedConstraints.exposureMode;
+      }
+      if (key === 'colorTemperature' && advancedConstraints.whiteBalanceMode) {
+        single.whiteBalanceMode = advancedConstraints.whiteBalanceMode;
+      }
+      await track.applyConstraints({
+        advanced: [single]
+      });
+      console.log(`Aplicou restrição individual: ${key} = ${val}`);
+    } catch (err) {
+      console.warn(`Câmera ou navegador não suporta a restrição '${key}':`, err);
+    }
+  }
+}
+
+function obterFiltroCamera() {
+  let filters = [];
+  if (Estado.modoP_B) {
+    filters.push('grayscale(100%)');
+  }
+
+  // Se estiver usando webcam, simula o ISO via brilho
+  if (Estado.cameraMode === 'webcam') {
+    const isoVal = Estado.configuracoes.iso;
+    if (isoVal && isoVal !== 'auto') {
+      const isoNum = parseInt(isoVal);
+      if (!isNaN(isoNum)) {
+        const isoMap = {
+          100: 0.8,
+          200: 1.0,
+          400: 1.25,
+          800: 1.5,
+          1600: 1.8,
+          3200: 2.2,
+          6400: 2.6,
+          12800: 3.0,
+          25600: 3.5,
+          51200: 4.0
+        };
+        const brightness = isoMap[isoNum] || 1.0;
+        if (brightness !== 1.0) {
+          filters.push(`brightness(${brightness})`);
+        }
+      }
+    }
+  }
+
+  return filters.length > 0 ? filters.join(' ') : 'none';
+}
+
 function setISO(v) {
   Estado.configuracoes.iso = v;
   if (v) mostrarToast(`ISO ajustado para ${v}`, 'info');
+  aplicarConfiguracoesCamera();
 }
 
 function setExposicao(v) {
   Estado.configuracoes.exposicao = v;
   const nomes = { manual:'Manual', av:'Prioridade de Abertura', tv:'Prioridade de Obturador', p:'Programa', auto:'Auto', bulb:'Bulb' };
   if (v) mostrarToast(`Modo: ${nomes[v] || v}`, 'info');
+  aplicarConfiguracoesCamera();
 }
 
 function setCompensacao(v) {
   Estado.configuracoes.compensacao = v;
+  aplicarConfiguracoesCamera();
 }
 
 function setQualidade(v) {
@@ -799,11 +1191,13 @@ function setWB(v) {
   Estado.configuracoes.wb = v;
   const nomes = { auto:'Auto', daylight:'Luz do Dia', shade:'Sombra', cloudy:'Nublado', tungsten:'Tungstênio', fluorescent:'Fluorescente', flash:'Flash', custom:'Personalizado', kelvin:'Temperatura (K)' };
   if (v) mostrarToast(`Balanço de Branco: ${nomes[v] || v}`, 'info');
+  aplicarConfiguracoesCamera();
 }
 
 function setTemperatura(v) {
   Estado.configuracoes.temperatura = parseInt(v);
   document.getElementById('tempValue').textContent = `${v}K`;
+  aplicarConfiguracoesCamera();
 }
 
 function setMedicao(v) {
@@ -819,6 +1213,7 @@ function setDrive(v) {
 function setAF(v) {
   Estado.configuracoes.af = v;
   if (v) mostrarToast(`AF: ${v.toUpperCase()}`, 'info');
+  aplicarConfiguracoesCamera();
 }
 
 function setAFDetail(v) {
@@ -828,10 +1223,12 @@ function setAFDetail(v) {
 
 function setTv(v) {
   Estado.configuracoes.tv = v;
+  aplicarConfiguracoesCamera();
 }
 
 function setAv(v) {
   Estado.configuracoes.av = v;
+  aplicarConfiguracoesCamera();
 }
 
 // ============================================
@@ -1790,7 +2187,7 @@ let _chromaCtx = null;
 function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
   if (!Estado.fundo.ativo || Estado.fundo.tipo === 'none') {
     // Sem fundo: desenha vídeo normal
-    if (Estado.modoP_B) ctx.filter = 'grayscale(100%)';
+    ctx.filter = obterFiltroCamera();
     ctx.drawImage(videoEl, dx, dy, dw, dh);
     ctx.filter = 'none';
     return;
@@ -1810,7 +2207,7 @@ function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
       _chromaCanvas.height = ch;
     }
 
-    if (Estado.modoP_B) _chromaCtx.filter = 'grayscale(100%)';
+    _chromaCtx.filter = obterFiltroCamera();
     _chromaCtx.drawImage(videoEl, dx, dy, dw, dh);
     _chromaCtx.filter = 'none';
 
@@ -1854,7 +2251,7 @@ function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
     const tempCtx = tempCanvas.getContext('2d');
 
     // Desenha vídeo no canvas temporário
-    if (Estado.modoP_B) tempCtx.filter = 'grayscale(100%)';
+    tempCtx.filter = obterFiltroCamera();
     tempCtx.drawImage(videoEl, dx, dy, dw, dh);
     tempCtx.filter = 'none';
 
@@ -1880,7 +2277,7 @@ function compositorFundo(ctx, videoEl, cw, ch, dx, dy, dw, dh) {
 
   } else {
     // Sem máscara IA: sobrepõe vídeo com modo de composição normal aplicando escala e coordenadas X, Y
-    if (Estado.modoP_B) ctx.filter = 'grayscale(100%)';
+    ctx.filter = obterFiltroCamera();
     ctx.globalAlpha = 0.95;
 
     const scaleFactor = Estado.fundo.sujeitoScale / 100;
@@ -2803,4 +3200,234 @@ function alterarMetodoRemocao(value) {
     mostrarToast('🤖 Modo de Remoção: Inteligência Artificial (BiRefNet)', 'success');
     atualizarStatusFundo();
   }
+}
+
+// ============================================
+// FLUXO DE TELAS (TELA 1 LOGIN -> TELA 2 SESSÃO -> TELA 3 CÂMERA)
+// ============================================
+
+function inicializarFluxoTelas() {
+  // Garante valores padrão nas configurações de sessão
+  if (!localStorage.getItem('megakey_cfg_sigla_padrao')) {
+    localStorage.setItem('megakey_cfg_sigla_padrao', 'FT');
+  }
+  if (!localStorage.getItem('megakey_cfg_poses_lista')) {
+    localStorage.setItem('megakey_cfg_poses_lista', 'Espontânea, Sorriso, Sério, Pose 1, Pose 2');
+  }
+
+  // Preenche dados iniciais na Tela 2
+  carregarDadosSessaoTela2();
+
+  // Esconde o app principal no startup (mostra apenas a Tela 1: Login)
+  const topbar = document.getElementById('topbar');
+  const photoboothBar = document.getElementById('photoboothBar');
+  const mainLayout = document.getElementById('mainLayout');
+  
+  if (topbar) topbar.style.display = 'none';
+  if (photoboothBar) photoboothBar.style.display = 'none';
+  if (mainLayout) mainLayout.style.display = 'none';
+  
+  const loginScreen = document.getElementById('tela1-login');
+  if (loginScreen) {
+    loginScreen.style.display = 'flex';
+    loginScreen.style.opacity = '1';
+  }
+  
+  // Adiciona evento de "Enter" nos inputs de login
+  const passInput = document.getElementById('login-password');
+  if (passInput) {
+    passInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') realizarLogin();
+    });
+  }
+  
+  // Adiciona evento de "Enter" nos inputs de sessão para facilidade
+  const numInput = document.getElementById('session-numero');
+  if (numInput) {
+    numInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') iniciarSessao();
+    });
+  }
+}
+
+function carregarDadosSessaoTela2() {
+  const siglaPadrao = localStorage.getItem('megakey_cfg_sigla_padrao') || 'FT';
+  const posesLista = localStorage.getItem('megakey_cfg_poses_lista') || 'Espontânea, Sorriso, Sério, Pose 1, Pose 2';
+
+  // Sigla do fotógrafo preenche com a padrão
+  const sessionSiglaInput = document.getElementById('session-sigla');
+  if (sessionSiglaInput) {
+    sessionSiglaInput.value = siglaPadrao;
+  }
+
+  // Popula o dropdown de Tipo de Pose
+  const selectPose = document.getElementById('session-pose');
+  if (selectPose) {
+    selectPose.innerHTML = '';
+    const poses = posesLista.split(',').map(p => p.trim()).filter(Boolean);
+    poses.forEach(pose => {
+      const option = document.createElement('option');
+      option.value = pose;
+      option.textContent = pose;
+      selectPose.appendChild(option);
+    });
+  }
+}
+
+function realizarLogin() {
+  const userEl = document.getElementById('login-username');
+  const passEl = document.getElementById('login-password');
+  const errorMsg = document.getElementById('login-error-msg');
+
+  if (!userEl || !passEl) return;
+
+  const user = userEl.value;
+  const pass = passEl.value;
+
+  // Login simples (aceita admin/admin ou qualquer credencial não vazia para usabilidade rápida do fotógrafo)
+  if (user.trim() !== '' && pass.trim() !== '') {
+    if (errorMsg) errorMsg.style.display = 'none';
+    
+    // Transição suave de saída
+    const loginScreen = document.getElementById('tela1-login');
+    if (loginScreen) {
+      loginScreen.style.opacity = '0';
+      setTimeout(() => {
+        loginScreen.style.display = 'none';
+        
+        const sessionScreen = document.getElementById('tela2-session');
+        if (sessionScreen) {
+          sessionScreen.style.display = 'flex';
+          sessionScreen.style.opacity = '1';
+        }
+        mostrarToast('Acesso autorizado!', 'success');
+      }, 250);
+    }
+  } else {
+    if (errorMsg) {
+      errorMsg.style.display = 'block';
+      errorMsg.textContent = 'Usuário e senha são obrigatórios.';
+    }
+  }
+}
+
+function iniciarSessao() {
+  const siglaEl = document.getElementById('session-sigla');
+  const clienteEl = document.getElementById('session-cliente');
+  const numeroEl = document.getElementById('session-numero');
+  const poseEl = document.getElementById('session-pose');
+  const errorMsg = document.getElementById('session-error-msg');
+
+  if (!siglaEl || !clienteEl || !numeroEl || !poseEl) return;
+
+  const sigla = siglaEl.value.trim();
+  const cliente = clienteEl.value.trim();
+  const numero = numeroEl.value.trim();
+  const pose = poseEl.value;
+
+  if (!sigla || !cliente || !numero) {
+    if (errorMsg) {
+      errorMsg.style.display = 'block';
+      errorMsg.textContent = 'Por favor, preencha todos os campos da sessão.';
+    }
+    return;
+  }
+
+  if (errorMsg) errorMsg.style.display = 'none';
+
+  // Grava as informações da sessão ativa no localStorage para serem usadas no nome do arquivo
+  localStorage.setItem('megakey_session_sigla', sigla);
+  localStorage.setItem('megakey_session_cliente', cliente);
+  localStorage.setItem('megakey_session_numero', numero);
+  localStorage.setItem('megakey_session_pose', pose);
+
+  // Transiciona para a Tela 3 (App Principal)
+  const sessionScreen = document.getElementById('tela2-session');
+  if (sessionScreen) {
+    sessionScreen.style.opacity = '0';
+    setTimeout(() => {
+      sessionScreen.style.display = 'none';
+      
+      const topbar = document.getElementById('topbar');
+      const photoboothBar = document.getElementById('photoboothBar');
+      const mainLayout = document.getElementById('mainLayout');
+      
+      if (topbar) topbar.style.display = 'flex';
+      if (photoboothBar && Estado.atalhosFootobooth) photoboothBar.style.display = 'flex';
+      if (mainLayout) mainLayout.style.display = 'flex';
+      
+      mostrarToast(`Sessão iniciada: ${cliente}!`, 'success');
+    }, 250);
+  }
+}
+
+function abrirConfigSessao() {
+  const siglaPadraoInput = document.getElementById('cfg-sigla-padrao');
+  const posesListaInput = document.getElementById('cfg-poses-lista');
+
+  if (siglaPadraoInput) siglaPadraoInput.value = localStorage.getItem('megakey_cfg_sigla_padrao') || 'FT';
+  if (posesListaInput) posesListaInput.value = localStorage.getItem('megakey_cfg_poses_lista') || 'Espontânea, Sorriso, Sério, Pose 1, Pose 2';
+  
+  abrirModal('modalConfigSessao');
+}
+
+function salvarConfigSessao() {
+  const siglaEl = document.getElementById('cfg-sigla-padrao');
+  const posesEl = document.getElementById('cfg-poses-lista');
+
+  if (!siglaEl || !posesEl) return;
+
+  const sigla = siglaEl.value.trim();
+  const poses = posesEl.value.trim();
+
+  if (!sigla || !poses) {
+    mostrarToast('Por favor, preencha todos os campos de configuração.', 'error');
+    return;
+  }
+
+  localStorage.setItem('megakey_cfg_sigla_padrao', sigla);
+  localStorage.setItem('megakey_cfg_poses_lista', poses);
+
+  fecharModal('modalConfigSessao');
+  carregarDadosSessaoTela2();
+  mostrarToast('Configurações da sessão salvas com sucesso!', 'success');
+}
+
+function voltarParaSessao() {
+  // Desativa o Live View se estiver rodando
+  if (Estado.liveViewAtivo) {
+    toggleLiveView();
+  }
+
+  // Limpa os dados temporários do cliente anterior da sessão
+  localStorage.removeItem('megakey_session_cliente');
+  localStorage.removeItem('megakey_session_numero');
+  localStorage.removeItem('megakey_session_pose');
+
+  // Limpa os campos de input correspondentes
+  const clienteEl = document.getElementById('session-cliente');
+  const numeroEl = document.getElementById('session-numero');
+  if (clienteEl) clienteEl.value = '';
+  if (numeroEl) numeroEl.value = '';
+  
+  // Recarrega as configurações persistentes
+  carregarDadosSessaoTela2();
+
+  // Esconde o app principal
+  const topbar = document.getElementById('topbar');
+  const photoboothBar = document.getElementById('photoboothBar');
+  const mainLayout = document.getElementById('mainLayout');
+  
+  if (topbar) topbar.style.display = 'none';
+  if (photoboothBar) photoboothBar.style.display = 'none';
+  if (mainLayout) mainLayout.style.display = 'none';
+  
+  // Exibe a Tela 2
+  const sessionScreen = document.getElementById('tela2-session');
+  if (sessionScreen) {
+    sessionScreen.style.display = 'flex';
+    sessionScreen.style.opacity = '1';
+  }
+
+  mostrarToast('Pronto para a próxima sessão de fotos!', 'info');
 }

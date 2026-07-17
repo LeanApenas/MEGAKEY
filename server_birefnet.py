@@ -38,80 +38,79 @@ def add_header(response):
     return response
 
 # ============================================================
-# CARREGAMENTO DO MODELO
+# CARREGAMENTO DO MODELO EM SEGUNDO PLANO (THREAD-SAFE)
 # ============================================================
-print("=" * 60)
-print("  MEGAKEY — Servidor BiRefNet")
-print("=" * 60)
-print()
-print("Carregando modelo BiRefNet...")
-print("(Aguarde — primeira vez faz download de ~1.5GB)")
-print()
+import threading
 
-device = None
+device = "cpu"
 pipeline = None
 modelo_carregado = False
 modelo_nome = "ZhengPeng7/BiRefNet"
+rembg_disponivel = False
+rembg_remove = None
 
-try:
-    import torch
-    from transformers import pipeline as hf_pipeline
+# Evento para sinalizar quando o carregamento em segundo plano terminou
+loading_finished = threading.Event()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+def carregar_modelos_segundo_plano():
+    global device, pipeline, modelo_carregado, rembg_disponivel, rembg_remove
+    print("=" * 60)
+    print("  MEGAKEY — Carregando IA em Segundo Plano...")
+    print("=" * 60)
+    
+    # 1. Tenta carregar a biblioteca rembg
+    try:
+        from rembg import remove as _rembg_remove
+        rembg_remove = _rembg_remove
+        rembg_disponivel = True
+        print("  [OK] Biblioteca 'rembg' carregada!")
+    except ImportError:
+        rembg_disponivel = False
+        print("  [AVISO] Biblioteca 'rembg' não encontrada.")
+    except Exception as e:
+        rembg_disponivel = False
+        print(f"  [ERRO] Ao carregar 'rembg': {e}")
 
-    if device == "cuda":
-        gpu = torch.cuda.get_device_name(0)
-        vram = torch.cuda.get_device_properties(0).total_memory / 1e9
-        print(f"  GPU detectada: {gpu} ({vram:.1f}GB VRAM)")
-    else:
-        print("  GPU NVIDIA nao detectada -- usando CPU (mais lento)")
+    # 2. Tenta carregar o BiRefNet (PyTorch + Transformers)
+    try:
+        import torch
+        from transformers import pipeline as hf_pipeline
 
-    print(f"  Dispositivo: {device.upper()}")
-    print(f"  Modelo: {modelo_nome}")
-    print()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    pipeline = hf_pipeline(
-        "image-segmentation",
-        model=modelo_nome,
-        trust_remote_code=True,
-        device=device
-    )
+        if device == "cuda":
+            gpu = torch.cuda.get_device_name(0)
+            vram = torch.cuda.get_device_properties(0).total_memory / 1e9
+            print(f"  GPU detectada: {gpu} ({vram:.1f}GB VRAM)")
+        else:
+            print("  GPU NVIDIA não detectada -- usando CPU (mais lento)")
 
-    modelo_carregado = True
-    print("Modelo BiRefNet carregado com sucesso!")
-    print()
-    print(f"  Servidor rodando em: http://localhost:7860")
-    print(f"  Pressione Ctrl+C para encerrar")
+        print(f"  Dispositivo BiRefNet: {device.upper()}")
+        print(f"  Modelo: {modelo_nome}")
+
+        pipeline = hf_pipeline(
+            "image-segmentation",
+            model=modelo_nome,
+            trust_remote_code=True,
+            device=device
+        )
+
+        modelo_carregado = True
+        print("  [OK] Modelo BiRefNet carregado com sucesso!")
+
+    except ImportError as e:
+        print(f"  [ERRO] Dependências do BiRefNet ausentes: {e}")
+        print("  Instale: pip install torch transformers")
+        modelo_carregado = False
+    except Exception as e:
+        print(f"  [ERRO] Ao carregar BiRefNet: {e}")
+        modelo_carregado = False
+
+    loading_finished.set()
     print("=" * 60)
 
-except ImportError as e:
-    print(f"Erro de importacao: {e}")
-    print()
-    print("Instale as dependencias:")
-    print("  pip install torch transformers pillow flask flask-cors")
-    print()
-    print("Para GPU NVIDIA (recomendado):")
-    print("  pip install torch --index-url https://download.pytorch.org/whl/cu121")
-    print()
-    print("Servidor iniciando em MODO DEMO (sem IA real)")
-    print()
-
-except Exception as e:
-    print(f"Erro ao carregar modelo: {e}")
-    print("Servidor iniciando em MODO DEMO")
-    print()
-
-
-# ============================================================
-# CARREGAMENTO DO MODELO REMBG (FALLBACK SEGURO DE ALTA QUALIDADE)
-# ============================================================
-try:
-    from rembg import remove as rembg_remove
-    rembg_disponivel = True
-    print("Biblioteca 'rembg' de alta qualidade detectada e carregada!")
-    print()
-except ImportError:
-    rembg_disponivel = False
+# Dispara a thread para carregar os modelos pesados asincronamente
+threading.Thread(target=carregar_modelos_segundo_plano, daemon=True).start()
 
 # ============================================================
 # ENDPOINTS
@@ -207,6 +206,11 @@ def remove_bg():
         return jsonify({"erro": "Campo 'image' nao encontrado"}), 400
 
     try:
+        # Garante que as IAs carregaram antes de processar
+        if not loading_finished.is_set():
+            print("Aguardando carregamento da IA...")
+            loading_finished.wait(timeout=10.0)
+
         arquivo = request.files["image"]
         img = Image.open(arquivo.stream).convert("RGB")
 
@@ -301,6 +305,11 @@ def remove_bg_base64():
         return jsonify({"erro": "Campo 'image_b64' nao encontrado"}), 400
 
     try:
+        # Garante que as IAs carregaram antes de processar
+        if not loading_finished.is_set():
+            print("Aguardando carregamento da IA...")
+            loading_finished.wait(timeout=10.0)
+
         img_bytes = base64.b64decode(data["image_b64"])
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 

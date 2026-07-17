@@ -29,7 +29,7 @@ if __name__ == '__main__':
     t.start()
 
     # Aguarda o Flask subir completamente
-    time.sleep(1.5)
+    time.sleep(0.5)
 
     # Abre a janela nativa do Desktop (como um aplicativo real)
     webview.create_window(
